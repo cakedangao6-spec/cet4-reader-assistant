@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<!--
+  CET-4 Listening Trainer
+
+  This page is a CET-4 focused adaptation built on the ABLoopPlayer project idea:
+  local HTML5 media playback, playback-rate control, A-B repeat, and saved loop/time data.
+  Original project retained in this fork: ABLoopPlayer.html, js/main.js, css/main.css.
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CET-4 听力精听播放器</title>
+  <link rel="shortcut icon" type="image/x-icon" href="png/favicon.ico" />
+  <link rel="stylesheet" href="css/cet4.css" />
+  <script src="data/cet4_2025_06_1.js"></script>
+  <script src="data/cet4_2025_06_1_timeline.js"></script>
+  <script src="js/cet4.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>CET-4 听力精听播放器</h1>
+        <p id="mediaLabel">cet4_2025_06_1.mp3</p>
+      </div>
+      <div class="top-actions">
+        <label class="button" for="audioInput">导入 MP3</label>
+        <input id="audioInput" type="file" accept="audio/*" hidden />
+        <label class="button secondary" for="jsonInput">导入 JSON</label>
+        <input id="jsonInput" type="file" accept="application/json,.json" hidden />
+        <button id="saveJsonButton" type="button">保存 JSON</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="question-pane" aria-label="题号导航">
+        <div class="pane-title">
+          <span>题号</span>
+          <span id="countLabel">25</span>
+        </div>
+        <input id="searchInput" class="search" type="search" placeholder="搜索关键词" autocomplete="off" />
+        <div id="questionList" class="question-list"></div>
+      </aside>
+
+      <section class="workbench" aria-label="播放器">
+        <audio id="player" controls preload="metadata"></audio>
+
+        <div class="now-row">
+          <div>
+            <span id="currentTime">00:00</span>
+            <span class="muted">/</span>
+            <span id="duration">00:00</span>
+          </div>
+          <div class="speed-control">
+            <label for="speedSelect">倍速</label>
+            <select id="speedSelect">
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="0.9">0.9x</option>
+              <option value="1" selected>1.0x</option>
+              <option value="1.1">1.1x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2.0x</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="loop-panel">
+          <div class="loop-fields">
+            <label>A <input id="loopAInput" inputmode="numeric" placeholder="00:00" /></label>
+            <label>B <input id="loopBInput" inputmode="numeric" placeholder="00:00" /></label>
+          </div>
+          <div class="button-row">
+            <button id="setQuestionTimeButton" type="button">当前时间设为本题</button>
+            <button id="setAButton" type="button">设 A</button>
+            <button id="setBButton" type="button">设 B</button>
+            <button id="useQuestionLoopButton" type="button">本题 A-B</button>
+            <button id="toggleLoopButton" type="button" aria-pressed="false">A-B 循环</button>
+            <button id="clearLoopButton" type="button" class="secondary">清除</button>
+          </div>
+          <div id="loopStatus" class="status-line">A-B 未启用</div>
+        </div>
+
+        <div class="question-editor">
+          <div class="editor-head">
+            <h2 id="selectedTitle">Question 1</h2>
+            <span id="timingBadge" class="badge">估算时间</span>
+          </div>
+          <div class="timing-grid">
+            <label>开始 <input id="questionStartInput" inputmode="numeric" /></label>
+            <label>结束 <input id="questionEndInput" inputmode="numeric" /></label>
+            <button id="applyTimingButton" type="button">更新时间</button>
+          </div>
+          <div id="questionText" class="question-text"></div>
+        </div>
+      </section>
+
+      <aside class="detail-pane" aria-label="原文答案解析">
+        <div class="pane-title">
+          <span>原文 / 答案 / 解析</span>
+          <a id="answerPdfLink" href="materials/listening/25-6-1/cet4_2025_06_1_ans.pdf" target="_blank" rel="noreferrer">PDF</a>
+        </div>
+        <div id="detailContent" class="detail-content"></div>
+      </aside>
+    </main>
+  </div>
+</body>
+</html>

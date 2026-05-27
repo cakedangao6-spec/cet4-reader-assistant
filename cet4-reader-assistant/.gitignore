@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+data/dictionaries/ecdict.csv
+data/dictionaries/ecdict.mini.csv
+data/dictionaries/ecdict.sqlite3
+data/dictionaries/lemma.en.txt
+data/exports/vocab.txt
+data/history/
+vocab/

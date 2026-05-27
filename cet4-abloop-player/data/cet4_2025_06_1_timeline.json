@@ -1,0 +1,1481 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-14T03:47:32.979269+00:00",
+  "model": "Systran/faster-whisper-base.en",
+  "audioFile": "materials/listening/25-6-1/cet4_2025_06_1.mp3",
+  "language": "en",
+  "languageProbability": 1,
+  "duration": 1416.05,
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 7.0,
+      "questionId": null,
+      "text": "College English Test, Band 4, Part 2, Listening, Comprehension"
+    },
+    {
+      "id": 2,
+      "start": 7.0,
+      "end": 10.0,
+      "questionId": null,
+      "text": "Section A, Directions"
+    },
+    {
+      "id": 3,
+      "start": 10.0,
+      "end": 19.0,
+      "questionId": null,
+      "text": "In this section, you will hear three news reports. At the end of each news report, you will hear two or three questions."
+    },
+    {
+      "id": 4,
+      "start": 19.0,
+      "end": 25.0,
+      "questionId": null,
+      "text": "Both the news report and the questions will be spoken only once."
+    },
+    {
+      "id": 5,
+      "start": 25.0,
+      "end": 34.0,
+      "questionId": null,
+      "text": "After you hear a question, you must choose the best answer from the four choices marked A, B, C, and D."
+    },
+    {
+      "id": 6,
+      "start": 34.0,
+      "end": 41.0,
+      "questionId": null,
+      "text": "Then mark the corresponding letter on answer sheet one with a single line through the center."
+    },
+    {
+      "id": 7,
+      "start": 41.0,
+      "end": 49.0,
+      "questionId": null,
+      "text": "News report one. Everything changed for seven-year-old Tariq when he slapped some butter on an ear of corn."
+    },
+    {
+      "id": 8,
+      "start": 49.0,
+      "end": 54.0,
+      "questionId": 1,
+      "text": "He knew it tasted good, but butter made it better."
+    },
+    {
+      "id": 9,
+      "start": 54.0,
+      "end": 61.26,
+      "questionId": 1,
+      "text": "His passion for produce got him a position as South Dakota's official corn ambassador."
+    },
+    {
+      "id": 10,
+      "start": 61.26,
+      "end": 68.26,
+      "questionId": 1,
+      "text": "Terek's profession of love for his favorite vegetable earned him the name the corn kid."
+    },
+    {
+      "id": 11,
+      "start": 68.26,
+      "end": 75.54,
+      "questionId": 1,
+      "text": "This was after his online interview attracted millions of views and was made into a song."
+    },
+    {
+      "id": 12,
+      "start": 75.54,
+      "end": 80.54,
+      "questionId": 1,
+      "text": "South Dakota is one of the top corn producers in America."
+    },
+    {
+      "id": 13,
+      "start": 80.54,
+      "end": 84.42,
+      "questionId": 2,
+      "text": "The corn provides nourishment across the globe."
+    },
+    {
+      "id": 14,
+      "start": 84.42,
+      "end": 92.1,
+      "questionId": 2,
+      "text": "Tariq said not everyone has to like corn, but everyone should definitely try it, especially"
+    },
+    {
+      "id": 15,
+      "start": 92.1,
+      "end": 93.9,
+      "questionId": 2,
+      "text": "with butter."
+    },
+    {
+      "id": 16,
+      "start": 93.9,
+      "end": 99.9,
+      "questionId": 2,
+      "text": "Tariq and his family were invited to South Dakota to attend the honorary ceremony at"
+    },
+    {
+      "id": 17,
+      "start": 99.9,
+      "end": 102.66,
+      "questionId": 2,
+      "text": "the state's corn palace."
+    },
+    {
+      "id": 18,
+      "start": 102.66,
+      "end": 110.5,
+      "questionId": 2,
+      "text": "Officials wanted to highlight South Dakota's two largest industries, tourism and agriculture."
+    },
+    {
+      "id": 19,
+      "start": 110.5,
+      "end": 126.58,
+      "questionId": 2,
+      "text": "Tariq couldn't believe his eyes when he saw the palace made of corn."
+    },
+    {
+      "id": 20,
+      "start": 140.5,
+      "end": 147.5,
+      "questionId": 3,
+      "text": "Question 2. Why were Tariq and his family invited to South Dakota?"
+    },
+    {
+      "id": 21,
+      "start": 160.5,
+      "end": 165.5,
+      "questionId": 3,
+      "text": "News report 2. Two arrests were announced Thursday."
+    },
+    {
+      "id": 22,
+      "start": 165.5,
+      "end": 172.2,
+      "questionId": 3,
+      "text": "The arrests were in connection with a string of male thefts from U.S. post-services collection"
+    },
+    {
+      "id": 23,
+      "start": 172.2,
+      "end": 178.5,
+      "questionId": 3,
+      "text": "boxes in Marion County and for the possession of a stolen postal key according to the Department"
+    },
+    {
+      "id": 24,
+      "start": 178.5,
+      "end": 186.5,
+      "questionId": 3,
+      "text": "of Justice. Jordan Jax and Tarred Goodman, both 23, were arrested after evidence gathered"
+    },
+    {
+      "id": 25,
+      "start": 186.5,
+      "end": 192.02,
+      "questionId": 3,
+      "text": "in an investigation showed the pair stole mail on multiple occasions using a postal"
+    },
+    {
+      "id": 26,
+      "start": 192.02,
+      "end": 200.1,
+      "questionId": 4,
+      "text": "key, according to a news release. Jax and Goodman stole mail for around four months."
+    },
+    {
+      "id": 27,
+      "start": 200.1,
+      "end": 205.24,
+      "questionId": 4,
+      "text": "Investigators reviewed videos of the collection boxes. The video showed the two men loading"
+    },
+    {
+      "id": 28,
+      "start": 205.24,
+      "end": 212.46,
+      "questionId": 4,
+      "text": "the stolen mail into Jax's vehicle. Investigators were also able to recover the key that was"
+    },
+    {
+      "id": 29,
+      "start": 212.46,
+      "end": 219.46,
+      "questionId": 4,
+      "text": "used to open the collection boxes. Jax and Goodman each face up to five years in federal"
+    },
+    {
+      "id": 30,
+      "start": 219.46,
+      "end": 236.74,
+      "questionId": 4,
+      "text": "prison in the male thefts and up to ten years for possession of the postal key."
+    },
+    {
+      "id": 31,
+      "start": 249.46,
+      "end": 256.46,
+      "questionId": 4,
+      "text": "Question 4. What do Jordan Jacks and Terrid Goodman face?"
+    },
+    {
+      "id": 32,
+      "start": 256.46,
+      "end": 277.46,
+      "questionId": 4,
+      "text": "News Report 3. Can fast fashion be sustainable? Researchers think yes."
+    },
+    {
+      "id": 33,
+      "start": 277.46,
+      "end": 291.46,
+      "questionId": 5,
+      "text": "Identifying why the fast fashion business model creates waste and determining whether regulators can establish incentives for consumers and manufacturers are steps to reduce waste."
+    },
+    {
+      "id": 34,
+      "start": 291.46,
+      "end": 300.46,
+      "questionId": 5,
+      "text": "Recently, the clothing industry has come under attack for creating a waste problem with serious environmental consequences."
+    },
+    {
+      "id": 35,
+      "start": 300.46,
+      "end": 309.08,
+      "questionId": 5,
+      "text": "In the absence of environmentally and economically feasible recycling options, fast-fashion manufacturers"
+    },
+    {
+      "id": 36,
+      "start": 309.08,
+      "end": 315.54,
+      "questionId": 5,
+      "text": "pump out low-quality clothes produced in high volumes that are worn only a few times"
+    },
+    {
+      "id": 37,
+      "start": 315.54,
+      "end": 317.56,
+      "questionId": 5,
+      "text": "and then discarded."
+    },
+    {
+      "id": 38,
+      "start": 317.56,
+      "end": 324.18,
+      "questionId": 5,
+      "text": "The researchers put forth policy contributions, ranging from sustainable disposal of leftover"
+    },
+    {
+      "id": 39,
+      "start": 324.18,
+      "end": 331.46,
+      "questionId": 6,
+      "text": "stock to production tax to incentivize both manufacturers and consumers to be more waste"
+    },
+    {
+      "id": 40,
+      "start": 331.46,
+      "end": 333.02,
+      "questionId": 6,
+      "text": "conscious."
+    },
+    {
+      "id": 41,
+      "start": 333.02,
+      "end": 338.3,
+      "questionId": 6,
+      "text": "In order to devise effective policies to curb the environmental impact of the clothing"
+    },
+    {
+      "id": 42,
+      "start": 338.3,
+      "end": 345.82,
+      "questionId": 6,
+      "text": "industry, it is important to identify the source of the problem in the supply chain."
+    },
+    {
+      "id": 43,
+      "start": 345.82,
+      "end": 352.46,
+      "questionId": 6,
+      "text": "Manufacturers, consumers, and regulatory bodies can then take an informed approach to recognize"
+    },
+    {
+      "id": 44,
+      "start": 352.46,
+      "end": 360.46,
+      "questionId": 6,
+      "text": "the environmental impact of fast fashion. And to design an ecosystem to reduce waste, incentivize"
+    },
+    {
+      "id": 45,
+      "start": 360.46,
+      "end": 366.62,
+      "questionId": 7,
+      "text": "innovation, and create new business models to manage waste."
+    },
+    {
+      "id": 46,
+      "start": 366.62,
+      "end": 371.94,
+      "questionId": 7,
+      "text": "Questions 5-7 are based on the news reports you have just heard."
+    },
+    {
+      "id": 47,
+      "start": 371.94,
+      "end": 376.1,
+      "questionId": 7,
+      "text": "Question 5. Why has the clothing industry come under attack?"
+    },
+    {
+      "id": 48,
+      "start": 382.46,
+      "end": 398.46,
+      "questionId": 7,
+      "text": "Question 6. Why do the researchers put forth such policies as production tax?"
+    },
+    {
+      "id": 49,
+      "start": 398.46,
+      "end": 412.54,
+      "questionId": 7,
+      "text": "Question 7."
+    },
+    {
+      "id": 50,
+      "start": 412.54,
+      "end": 416.94,
+      "questionId": 7,
+      "text": "What should be done first to eliminate the harm caused by the clothing industry?"
+    },
+    {
+      "id": 51,
+      "start": 428.46,
+      "end": 438.98,
+      "questionId": 7,
+      "text": "Section B, directions. In this section, you will hear two long conversations. At the end"
+    },
+    {
+      "id": 52,
+      "start": 438.98,
+      "end": 445.22,
+      "questionId": 8,
+      "text": "of each conversation, you will hear four questions. Both the conversation and the questions will"
+    },
+    {
+      "id": 53,
+      "start": 445.22,
+      "end": 450.98,
+      "questionId": 8,
+      "text": "be spoken only once. After you hear a question, you must choose the best answer from the four"
+    },
+    {
+      "id": 54,
+      "start": 450.98,
+      "end": 459.46,
+      "questionId": 8,
+      "text": "Your choices marked A, B, C and D. Then mark the corresponding letter on answer sheet one"
+    },
+    {
+      "id": 55,
+      "start": 459.46,
+      "end": 463.3,
+      "questionId": 8,
+      "text": "with a single line through the centre."
+    },
+    {
+      "id": 56,
+      "start": 463.3,
+      "end": 464.74,
+      "questionId": 8,
+      "text": "Conversation one."
+    },
+    {
+      "id": 57,
+      "start": 464.74,
+      "end": 468.42,
+      "questionId": 8,
+      "text": "Hey Mary, you seem to be very much annoyed."
+    },
+    {
+      "id": 58,
+      "start": 468.42,
+      "end": 469.74,
+      "questionId": 9,
+      "text": "What happened?"
+    },
+    {
+      "id": 59,
+      "start": 469.74,
+      "end": 472.46,
+      "questionId": 9,
+      "text": "Rush hour in this city is killing me."
+    },
+    {
+      "id": 60,
+      "start": 472.46,
+      "end": 478.46,
+      "questionId": 9,
+      "text": "Ah yes, rush hour is terrible, especially in the morning between eight and nine."
+    },
+    {
+      "id": 61,
+      "start": 478.46,
+      "end": 481.54,
+      "questionId": 9,
+      "text": "But what else can you expect in a city this big?"
+    },
+    {
+      "id": 62,
+      "start": 481.54,
+      "end": 485.26,
+      "questionId": 9,
+      "text": "Well, I think the local government could help improve things."
+    },
+    {
+      "id": 63,
+      "start": 485.26,
+      "end": 489.06,
+      "questionId": 9,
+      "text": "I mean, getting rid of rush hour may be impossible."
+    },
+    {
+      "id": 64,
+      "start": 489.06,
+      "end": 493.22,
+      "questionId": 9,
+      "text": "But it could be made more tolerable, don't you think?"
+    },
+    {
+      "id": 65,
+      "start": 493.22,
+      "end": 496.62,
+      "questionId": 9,
+      "text": "Erm, but I'm not sure how."
+    },
+    {
+      "id": 66,
+      "start": 496.62,
+      "end": 501.54,
+      "questionId": 9,
+      "text": "Well, for example, the subway system could have air conditioning."
+    },
+    {
+      "id": 67,
+      "start": 501.54,
+      "end": 506.14,
+      "questionId": 9,
+      "text": "I know many cities in the world have air conditioning in their subway."
+    },
+    {
+      "id": 68,
+      "start": 506.14,
+      "end": 508.22,
+      "questionId": 9,
+      "text": "So why can't we?"
+    },
+    {
+      "id": 69,
+      "start": 508.22,
+      "end": 512.9,
+      "questionId": 9,
+      "text": "It gets so hot in the summer, I can hardly breathe down there."
+    },
+    {
+      "id": 70,
+      "start": 512.9,
+      "end": 518.74,
+      "questionId": 9,
+      "text": "And add to that the rush hour crowds, with strangers packed close together in the subway"
+    },
+    {
+      "id": 71,
+      "start": 518.74,
+      "end": 519.9,
+      "questionId": 9,
+      "text": "carriages."
+    },
+    {
+      "id": 72,
+      "start": 519.9,
+      "end": 522.06,
+      "questionId": 9,
+      "text": "The whole thing is just horrible."
+    },
+    {
+      "id": 73,
+      "start": 522.06,
+      "end": 525.5,
+      "questionId": 10,
+      "text": "Ah yes, you are completely right."
+    },
+    {
+      "id": 74,
+      "start": 525.5,
+      "end": 527.58,
+      "questionId": 10,
+      "text": "The trains here are too old."
+    },
+    {
+      "id": 75,
+      "start": 527.58,
+      "end": 531.78,
+      "questionId": 10,
+      "text": "The government should definitely invest in new ones with air conditioning."
+    },
+    {
+      "id": 76,
+      "start": 531.78,
+      "end": 534.7,
+      "questionId": 10,
+      "text": "I guess I'm fortunate I take the bus instead."
+    },
+    {
+      "id": 77,
+      "start": 534.7,
+      "end": 536.62,
+      "questionId": 10,
+      "text": "Oh that's much better."
+    },
+    {
+      "id": 78,
+      "start": 536.62,
+      "end": 542.86,
+      "questionId": 10,
+      "text": "Yeah, it's more convenient, bus number 36 goes straight from my house to the office."
+    },
+    {
+      "id": 79,
+      "start": 542.86,
+      "end": 546.62,
+      "questionId": 10,
+      "text": "It's a 30 minute ride, and I don't have to make any changes."
+    },
+    {
+      "id": 80,
+      "start": 546.62,
+      "end": 548.18,
+      "questionId": 10,
+      "text": "That sounds nice."
+    },
+    {
+      "id": 81,
+      "start": 548.18,
+      "end": 551.94,
+      "questionId": 10,
+      "text": "I tell you, my current commute is killing me."
+    },
+    {
+      "id": 82,
+      "start": 551.94,
+      "end": 554.26,
+      "questionId": 10,
+      "text": "Maybe I should move closer to the office."
+    },
+    {
+      "id": 83,
+      "start": 554.26,
+      "end": 557.14,
+      "questionId": 10,
+      "text": "Well, I know a great housing agent."
+    },
+    {
+      "id": 84,
+      "start": 557.14,
+      "end": 561.06,
+      "questionId": 10,
+      "text": "I found the flat I'm living in now through him, and I love it."
+    },
+    {
+      "id": 85,
+      "start": 561.06,
+      "end": 563.62,
+      "questionId": 10,
+      "text": "Hmm, could you send me his number please?"
+    },
+    {
+      "id": 86,
+      "start": 563.62,
+      "end": 564.82,
+      "questionId": 10,
+      "text": "Sure thing."
+    },
+    {
+      "id": 87,
+      "start": 564.82,
+      "end": 570.34,
+      "questionId": 10,
+      "text": "tell him exactly what you are looking for, and I'm sure he will find something good.\""
+    },
+    {
+      "id": 88,
+      "start": 570.34,
+      "end": 575.46,
+      "questionId": 10,
+      "text": "Questions 8-11 are based on the conversation you have just heard."
+    },
+    {
+      "id": 89,
+      "start": 575.46,
+      "end": 576.46,
+      "questionId": 11,
+      "text": "Question 8."
+    },
+    {
+      "id": 90,
+      "start": 576.46,
+      "end": 593.18,
+      "questionId": 11,
+      "text": "Why is the woman complaining?"
+    },
+    {
+      "id": 91,
+      "start": 593.18,
+      "end": 611.38,
+      "questionId": 11,
+      "text": "Question 9. What does the woman suggest doing?"
+    },
+    {
+      "id": 92,
+      "start": 611.38,
+      "end": 615.54,
+      "questionId": 11,
+      "text": "Question 10. What do we learn about the man from the conversation?"
+    },
+    {
+      "id": 93,
+      "start": 623.18,
+      "end": 650.74,
+      "questionId": 11,
+      "text": "Question 11. What does the woman ask the man to do at the end of the conversation?"
+    },
+    {
+      "id": 94,
+      "start": 650.74,
+      "end": 653.74,
+      "questionId": 12,
+      "text": "Did you hear about Johnny?"
+    },
+    {
+      "id": 95,
+      "start": 653.74,
+      "end": 654.74,
+      "questionId": 12,
+      "text": "No, why?"
+    },
+    {
+      "id": 96,
+      "start": 654.74,
+      "end": 655.74,
+      "questionId": 12,
+      "text": "Is he okay?"
+    },
+    {
+      "id": 97,
+      "start": 655.74,
+      "end": 657.74,
+      "questionId": 12,
+      "text": "He had some plastic surgery done."
+    },
+    {
+      "id": 98,
+      "start": 657.74,
+      "end": 658.74,
+      "questionId": 12,
+      "text": "What?"
+    },
+    {
+      "id": 99,
+      "start": 658.74,
+      "end": 659.74,
+      "questionId": 12,
+      "text": "Why?"
+    },
+    {
+      "id": 100,
+      "start": 659.74,
+      "end": 662.74,
+      "questionId": 12,
+      "text": "Do you remember he had a scar on his face?"
+    },
+    {
+      "id": 101,
+      "start": 662.74,
+      "end": 663.74,
+      "questionId": 12,
+      "text": "Yes, of course."
+    },
+    {
+      "id": 102,
+      "start": 663.74,
+      "end": 664.74,
+      "questionId": 12,
+      "text": "He always had that."
+    },
+    {
+      "id": 103,
+      "start": 664.74,
+      "end": 670.74,
+      "questionId": 12,
+      "text": "I've known him since primary school, and I always remember him having that on his cheek."
+    },
+    {
+      "id": 104,
+      "start": 670.74,
+      "end": 672.74,
+      "questionId": 12,
+      "text": "Well, he had it fixed."
+    },
+    {
+      "id": 105,
+      "start": 672.74,
+      "end": 673.74,
+      "questionId": 12,
+      "text": "Fixed?"
+    },
+    {
+      "id": 106,
+      "start": 673.74,
+      "end": 674.74,
+      "questionId": 12,
+      "text": "What do you mean?"
+    },
+    {
+      "id": 107,
+      "start": 674.74,
+      "end": 676.74,
+      "questionId": 12,
+      "text": "You can't fix a scar."
+    },
+    {
+      "id": 108,
+      "start": 676.74,
+      "end": 678.74,
+      "questionId": 12,
+      "text": "You know what I mean."
+    },
+    {
+      "id": 109,
+      "start": 678.74,
+      "end": 684.22,
+      "questionId": 12,
+      "text": "him, he had an operation done on it, plastic surgery, in order to cover it and make it"
+    },
+    {
+      "id": 110,
+      "start": 684.22,
+      "end": 685.22,
+      "questionId": 12,
+      "text": "less noticeable."
+    },
+    {
+      "id": 111,
+      "start": 685.22,
+      "end": 689.18,
+      "questionId": 12,
+      "text": "Oh, well, that's ridiculous, isn't it?"
+    },
+    {
+      "id": 112,
+      "start": 689.18,
+      "end": 693.5,
+      "questionId": 12,
+      "text": "It was noticeable, sure, but it wasn't an ugly scar."
+    },
+    {
+      "id": 113,
+      "start": 693.5,
+      "end": 697.42,
+      "questionId": 13,
+      "text": "It never occurred to me that he should have it taken care of like that."
+    },
+    {
+      "id": 114,
+      "start": 697.42,
+      "end": 698.58,
+      "questionId": 13,
+      "text": "I agree."
+    },
+    {
+      "id": 115,
+      "start": 698.58,
+      "end": 704.94,
+      "questionId": 13,
+      "text": "I can understand some scars and physical defects can be ugly and distracting, but not Johnny's."
+    },
+    {
+      "id": 116,
+      "start": 704.94,
+      "end": 710.98,
+      "questionId": 13,
+      "text": "In fact, I thought it added character, like it gave him a certain uniqueness."
+    },
+    {
+      "id": 117,
+      "start": 710.98,
+      "end": 717.58,
+      "questionId": 13,
+      "text": "He must have felt differently though, he must have felt self-conscious, and insecure perhaps."
+    },
+    {
+      "id": 118,
+      "start": 717.58,
+      "end": 720.02,
+      "questionId": 13,
+      "text": "No, no, that's not the reason."
+    },
+    {
+      "id": 119,
+      "start": 720.02,
+      "end": 722.38,
+      "questionId": 13,
+      "text": "He was totally fine with his scar."
+    },
+    {
+      "id": 120,
+      "start": 722.38,
+      "end": 725.82,
+      "questionId": 13,
+      "text": "As you said, he had had it for most of his life."
+    },
+    {
+      "id": 121,
+      "start": 725.82,
+      "end": 728.22,
+      "questionId": 13,
+      "text": "Then why did he have the operation?"
+    },
+    {
+      "id": 122,
+      "start": 728.22,
+      "end": 730.54,
+      "questionId": 13,
+      "text": "Because his girlfriend wanted him to."
+    },
+    {
+      "id": 123,
+      "start": 730.54,
+      "end": 731.54,
+      "questionId": 13,
+      "text": "What?"
+    },
+    {
+      "id": 124,
+      "start": 731.54,
+      "end": 734.7,
+      "questionId": 13,
+      "text": "That's so superficial and selfish of her."
+    },
+    {
+      "id": 125,
+      "start": 734.7,
+      "end": 739.58,
+      "questionId": 13,
+      "text": "If Johnny's girlfriend doesn't like him for who he is, then she does not deserve to"
+    },
+    {
+      "id": 126,
+      "start": 739.58,
+      "end": 740.94,
+      "questionId": 13,
+      "text": "be his girlfriend."
+    },
+    {
+      "id": 127,
+      "start": 740.94,
+      "end": 742.14,
+      "questionId": 13,
+      "text": "You're right."
+    },
+    {
+      "id": 128,
+      "start": 742.14,
+      "end": 745.14,
+      "questionId": 14,
+      "text": "So he is insane to give in to her like that."
+    },
+    {
+      "id": 129,
+      "start": 745.14,
+      "end": 750.82,
+      "questionId": 14,
+      "text": "But when I told him, he said he loves her and would just do what she wants him to."
+    },
+    {
+      "id": 130,
+      "start": 750.82,
+      "end": 753.22,
+      "questionId": 14,
+      "text": "What a fool he is."
+    },
+    {
+      "id": 131,
+      "start": 753.22,
+      "end": 757.9,
+      "questionId": 14,
+      "text": "Questions 12 to 15 are based on the conversation you have just heard."
+    },
+    {
+      "id": 132,
+      "start": 757.9,
+      "end": 759.3,
+      "questionId": 14,
+      "text": "Question 12."
+    },
+    {
+      "id": 133,
+      "start": 759.3,
+      "end": 761.02,
+      "questionId": 14,
+      "text": "What does the man say about Johnny?"
+    },
+    {
+      "id": 134,
+      "start": 764.7,
+      "end": 793.7,
+      "questionId": 14,
+      "text": "Question 13. What does the woman find puzzling?"
+    },
+    {
+      "id": 135,
+      "start": 793.7,
+      "end": 812.36,
+      "questionId": 14,
+      "text": "Question 14. What did the man think of Johnny's scar?"
+    },
+    {
+      "id": 136,
+      "start": 812.36,
+      "end": 817.8,
+      "questionId": 15,
+      "text": "Question 15. How could we describe the speaker's attitude towards Johnny's girlfriend?"
+    },
+    {
+      "id": 137,
+      "start": 823.7,
+      "end": 839.38,
+      "questionId": 15,
+      "text": "Section C. Directions. In this section, you will hear three passages. At the end of each"
+    },
+    {
+      "id": 138,
+      "start": 839.38,
+      "end": 846.4,
+      "questionId": 15,
+      "text": "passage, you will hear three or four questions. Both the passage and the questions will be"
+    },
+    {
+      "id": 139,
+      "start": 846.4,
+      "end": 852.98,
+      "questionId": 15,
+      "text": "spoken only once. After you hear a question, you must choose the best answer from the four"
+    },
+    {
+      "id": 140,
+      "start": 852.98,
+      "end": 861.02,
+      "questionId": 15,
+      "text": "choices marked A, B, C, and D. Then mark the corresponding letter on answer sheet one"
+    },
+    {
+      "id": 141,
+      "start": 861.02,
+      "end": 864.74,
+      "questionId": 15,
+      "text": "with a single line through the center."
+    },
+    {
+      "id": 142,
+      "start": 864.74,
+      "end": 871.36,
+      "questionId": 15,
+      "text": "Patige one. Talking is unique to humans. An animal might make 10 different sounds, but"
+    },
+    {
+      "id": 143,
+      "start": 871.36,
+      "end": 877.86,
+      "questionId": 15,
+      "text": "an adult human knows more than 20,000 words. Additionally, we're the only animal that expresses"
+    },
+    {
+      "id": 144,
+      "start": 877.86,
+      "end": 884.22,
+      "questionId": 16,
+      "text": "thoughts in full sentences. Researchers don't think language was invented. Instead, they"
+    },
+    {
+      "id": 145,
+      "start": 884.22,
+      "end": 891.56,
+      "questionId": 16,
+      "text": "think it evolved. How did talking evolve? There are two main theories. The first theory"
+    },
+    {
+      "id": 146,
+      "start": 891.56,
+      "end": 896.98,
+      "questionId": 16,
+      "text": "is that language started with people making different sounds, mostly imitating the things"
+    },
+    {
+      "id": 147,
+      "start": 896.98,
+      "end": 903.3,
+      "questionId": 16,
+      "text": "around them, like animal calls, nature sounds, and the sounds of tools. Perhaps they made"
+    },
+    {
+      "id": 148,
+      "start": 903.3,
+      "end": 909.1,
+      "questionId": 16,
+      "text": "the sound of wind to comment on the weather, or imitated the sound of a bird to tell a"
+    },
+    {
+      "id": 149,
+      "start": 909.1,
+      "end": 914.84,
+      "questionId": 16,
+      "text": "friend that there was a bird nearby. Then, over hundreds of thousands of years, those"
+    },
+    {
+      "id": 150,
+      "start": 914.84,
+      "end": 920.66,
+      "questionId": 17,
+      "text": "sounds turned into words that people began to learn as part of their language. At some"
+    },
+    {
+      "id": 151,
+      "start": 920.66,
+      "end": 926.5,
+      "questionId": 17,
+      "text": "point, people started stringing the words together to form sentences."
+    },
+    {
+      "id": 152,
+      "start": 926.5,
+      "end": 932.94,
+      "questionId": 17,
+      "text": "The other main theory, which is more recent, is that people started off by gesturing, pointing"
+    },
+    {
+      "id": 153,
+      "start": 932.94,
+      "end": 938.98,
+      "questionId": 17,
+      "text": "at things with their hands and imitating actions using their bodies. Eventually, these"
+    },
+    {
+      "id": 154,
+      "start": 938.98,
+      "end": 945.82,
+      "questionId": 17,
+      "text": "gestures turned into a full sign language. This theory guesses that after developing sign"
+    },
+    {
+      "id": 155,
+      "start": 945.82,
+      "end": 953.02,
+      "questionId": 17,
+      "text": "languages, people eventually started making sounds along with their gestures. At some point,"
+    },
+    {
+      "id": 156,
+      "start": 953.02,
+      "end": 959.5,
+      "questionId": 17,
+      "text": "they switched to mostly making sounds that became words instead of just using their bodies."
+    },
+    {
+      "id": 157,
+      "start": 959.5,
+      "end": 965.42,
+      "questionId": 17,
+      "text": "The reason they switched to making sounds, the theory goes, is that talking out loud lets"
+    },
+    {
+      "id": 158,
+      "start": 965.42,
+      "end": 980.3,
+      "questionId": 17,
+      "text": "you communicate with someone even when you can't see them."
+    },
+    {
+      "id": 159,
+      "start": 989.5,
+      "end": 1016.18,
+      "questionId": 18,
+      "text": "Question 17, how did language start according to the first theory?"
+    },
+    {
+      "id": 160,
+      "start": 1016.18,
+      "end": 1022.82,
+      "questionId": 18,
+      "text": "18. Why did people switch from gesturing to making sounds according to the more recent theory?"
+    },
+    {
+      "id": 161,
+      "start": 1038.1,
+      "end": 1045.14,
+      "questionId": 18,
+      "text": "Passage 2. Is it a good idea to display luxury brands and other signals of status?"
+    },
+    {
+      "id": 162,
+      "start": 1045.14,
+      "end": 1051.98,
+      "questionId": 19,
+      "text": "this? It depends on the situation. Studies have shown that people who appear to be wealthy"
+    },
+    {
+      "id": 163,
+      "start": 1051.98,
+      "end": 1059.08,
+      "questionId": 19,
+      "text": "tend to be considered more intelligent, disciplined, and competent than those who do not. But"
+    },
+    {
+      "id": 164,
+      "start": 1059.08,
+      "end": 1065.54,
+      "questionId": 19,
+      "text": "new research found that people believe someone who shows off their social status cares more"
+    },
+    {
+      "id": 165,
+      "start": 1065.54,
+      "end": 1071.34,
+      "questionId": 19,
+      "text": "about benefiting themselves than helping others. This means people are less willing"
+    },
+    {
+      "id": 166,
+      "start": 1071.34,
+      "end": 1073.7,
+      "questionId": 19,
+      "text": "to collaborate with them."
+    },
+    {
+      "id": 167,
+      "start": 1073.7,
+      "end": 1080.38,
+      "questionId": 19,
+      "text": "Modesty may be key when cooperation is essential, but the researchers also found that in some"
+    },
+    {
+      "id": 168,
+      "start": 1080.38,
+      "end": 1085.06,
+      "questionId": 19,
+      "text": "cases status signaling has advantages."
+    },
+    {
+      "id": 169,
+      "start": 1085.06,
+      "end": 1089.52,
+      "questionId": 19,
+      "text": "Experiments showed that participants were less likely to choose someone who signals their"
+    },
+    {
+      "id": 170,
+      "start": 1089.52,
+      "end": 1096.5,
+      "questionId": 19,
+      "text": "wealth or status to join a group seeking cooperative members, but participants were more likely"
+    },
+    {
+      "id": 171,
+      "start": 1096.5,
+      "end": 1102.26,
+      "questionId": 19,
+      "text": "to choose that person when they were looking for a competitive team member. These findings"
+    },
+    {
+      "id": 172,
+      "start": 1102.26,
+      "end": 1107.14,
+      "questionId": 20,
+      "text": "suggest that people should change how they present themselves depending on their social"
+    },
+    {
+      "id": 173,
+      "start": 1107.14,
+      "end": 1113.86,
+      "questionId": 20,
+      "text": "goal. This is the era of social media. People can easily share their wealth and status to"
+    },
+    {
+      "id": 174,
+      "start": 1113.86,
+      "end": 1121.14,
+      "questionId": 20,
+      "text": "large audiences, but they need to consider the consequences. Posting about luxury purchases"
+    },
+    {
+      "id": 175,
+      "start": 1121.14,
+      "end": 1126.9,
+      "questionId": 20,
+      "text": "and expensive vacations online may help you to persuade others and frighten competitors."
+    },
+    {
+      "id": 176,
+      "start": 1127.86,
+      "end": 1134.34,
+      "questionId": 20,
+      "text": "But it could also signal to potential friends or future employers that you are unlikely to think"
+    },
+    {
+      "id": 177,
+      "start": 1134.34,
+      "end": 1141.06,
+      "questionId": 20,
+      "text": "about the needs of others. This makes things tricky for people who may want to impress others"
+    },
+    {
+      "id": 178,
+      "start": 1141.06,
+      "end": 1144.1,
+      "questionId": 20,
+      "text": "while also demonstrating that they are a team player."
+    },
+    {
+      "id": 179,
+      "start": 1145.14,
+      "end": 1149.46,
+      "questionId": 20,
+      "text": "Question 19 to 21 are based on the passage you have just heard."
+    },
+    {
+      "id": 180,
+      "start": 1149.46,
+      "end": 1156.86,
+      "questionId": 20,
+      "text": "Question 19. How would people describe someone who shows off their social status according"
+    },
+    {
+      "id": 181,
+      "start": 1156.86,
+      "end": 1173.58,
+      "questionId": 21,
+      "text": "to new research?"
+    },
+    {
+      "id": 182,
+      "start": 1173.58,
+      "end": 1179.06,
+      "questionId": 21,
+      "text": "Question 20. When were participants more likely to choose someone who signaled their wealth"
+    },
+    {
+      "id": 183,
+      "start": 1179.06,
+      "end": 1195.54,
+      "questionId": 21,
+      "text": "or status."
+    },
+    {
+      "id": 184,
+      "start": 1195.54,
+      "end": 1197.1,
+      "questionId": 21,
+      "text": "Question 21."
+    },
+    {
+      "id": 185,
+      "start": 1197.1,
+      "end": 1200.9,
+      "questionId": 21,
+      "text": "What should people do when sharing their wealth and status online?"
+    },
+    {
+      "id": 186,
+      "start": 1209.06,
+      "end": 1224.54,
+      "questionId": 22,
+      "text": "3. Human fascination with animals goes back as far as humans do. Of the oldest cave paintings"
+    },
+    {
+      "id": 187,
+      "start": 1224.54,
+      "end": 1232.02,
+      "questionId": 22,
+      "text": "discovered, some are up to 40,000 years old, and there are more images of animals than"
+    },
+    {
+      "id": 188,
+      "start": 1232.02,
+      "end": 1239.02,
+      "questionId": 22,
+      "text": "humans. At some point, humans began to capture and hold animals. The first known collection"
+    },
+    {
+      "id": 189,
+      "start": 1239.02,
+      "end": 1243.02,
+      "questionId": 22,
+      "text": "were held by royalty, and were not open to the public."
+    },
+    {
+      "id": 190,
+      "start": 1243.02,
+      "end": 1249.02,
+      "questionId": 22,
+      "text": "In Egypt, researchers have found buildings from around 3500 BC,"
+    },
+    {
+      "id": 191,
+      "start": 1249.02,
+      "end": 1255.02,
+      "questionId": 23,
+      "text": "containing the remains of animals, including elephants, which were not native to Egypt."
+    },
+    {
+      "id": 192,
+      "start": 1255.02,
+      "end": 1260.02,
+      "questionId": 23,
+      "text": "But life wasn't easy for these animals. They probably had short lives,"
+    },
+    {
+      "id": 193,
+      "start": 1260.02,
+      "end": 1264.02,
+      "questionId": 23,
+      "text": "and the remains show evidence of severe injuries."
+    },
+    {
+      "id": 194,
+      "start": 1264.02,
+      "end": 1273.02,
+      "questionId": 23,
+      "text": "The first public exhibit of animals may have been created by Egypt's Queen Hatshepsut around 1480 BC."
+    },
+    {
+      "id": 195,
+      "start": 1273.02,
+      "end": 1279.02,
+      "questionId": 23,
+      "text": "Researchers think the zoo was started with animals brought home from a far off land known as punt."
+    },
+    {
+      "id": 196,
+      "start": 1279.02,
+      "end": 1286.02,
+      "questionId": 23,
+      "text": "It's unclear why the queen built the zoo, but it might have been to show off her wealth and power."
+    },
+    {
+      "id": 197,
+      "start": 1286.02,
+      "end": 1290.02,
+      "questionId": 23,
+      "text": "Early zoos are found all over the world."
+    },
+    {
+      "id": 198,
+      "start": 1290.02,
+      "end": 1297.18,
+      "questionId": 23,
+      "text": "In China, Emperor Wen Wang is said to have built a garden of intelligence around 1060"
+    },
+    {
+      "id": 199,
+      "start": 1297.18,
+      "end": 1298.18,
+      "questionId": 23,
+      "text": "BC."
+    },
+    {
+      "id": 200,
+      "start": 1298.18,
+      "end": 1302.26,
+      "questionId": 23,
+      "text": "It included deer, birds and many fish."
+    },
+    {
+      "id": 201,
+      "start": 1302.26,
+      "end": 1308.94,
+      "questionId": 23,
+      "text": "In England, King Henry I set up a collection of animals in about 1110 as part of the royal"
+    },
+    {
+      "id": 202,
+      "start": 1308.94,
+      "end": 1310.26,
+      "questionId": 24,
+      "text": "estate."
+    },
+    {
+      "id": 203,
+      "start": 1310.26,
+      "end": 1313.86,
+      "questionId": 24,
+      "text": "His collection included tigers and lions."
+    },
+    {
+      "id": 204,
+      "start": 1313.86,
+      "end": 1318.94,
+      "questionId": 24,
+      "text": "This collection eventually moved to the Tower of London in 1235."
+    },
+    {
+      "id": 205,
+      "start": 1318.94,
+      "end": 1334.5,
+      "questionId": 24,
+      "text": "The collection stayed at that location for 600 years."
+    },
+    {
+      "id": 206,
+      "start": 1348.94,
+      "end": 1369.94,
+      "questionId": 24,
+      "text": "Question 23. What do we learn about the first known collections of animals?"
+    },
+    {
+      "id": 207,
+      "start": 1369.94,
+      "end": 1376.94,
+      "questionId": 25,
+      "text": "Question 24. What might be the reason the Egyptian queen created the zoo?"
+    },
+    {
+      "id": 208,
+      "start": 1378.94,
+      "end": 1393.34,
+      "questionId": 25,
+      "text": "Question 25."
+    },
+    {
+      "id": 209,
+      "start": 1393.34,
+      "end": 1398.02,
+      "questionId": 25,
+      "text": "What do we learn about King Henry I's collection of animals in England?"
+    },
+    {
+      "id": 210,
+      "start": 1408.94,
+      "end": 1415.94,
+      "questionId": 25,
+      "text": "That's the end of listening comprehension."
+    }
+  ]
+}
