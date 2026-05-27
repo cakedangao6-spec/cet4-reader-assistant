@@ -58,37 +58,35 @@ class Lemmatizer:
         key = normalize_word(word)
         if not key:
             return word
-        # 1. Lookup in lemma map
+        # 1. Lookup in lemma map (authoritative)
         heads = self._form_to_head.get(key)
         if heads:
             return heads[0]
-        # 2. Fallback: suffix-based rules for common inflections
-        #    These handle cases the lemma file might miss.
+        # 2. Fallback: suffix-based rules for common inflections.
+        #    Rules are conservative — they strip suffixes without trying to
+        #    guess silent-'e' restoration (e.g. taking -> tak, not take).
+        #    The _candidate_forms method in DictionaryService handles
+        #    multiple variations for local dictionary lookup, so a
+        #    close-enough stem here is acceptable for online fallback use.
         if key.endswith("ies") and len(key) > 4:
             return key[:-3] + "y"
         if key.endswith("ied") and len(key) > 4:
             return key[:-3] + "y"
         if key.endswith("ves") and len(key) > 4:
             return key[:-3] + "f"
-        if key.endswith("ing"):
+        if key.endswith("ing") and len(key) > 4:
             stem = key[:-3]
             if len(stem) >= 2:
                 # running -> run (double consonant)
                 if stem[-1] == stem[-2]:
                     return stem[:-1]
-                # taking -> take (add silent e)
-                if not stem.endswith("e"):
-                    return stem + "e"
                 return stem
-        if key.endswith("ed"):
+        if key.endswith("ed") and len(key) > 4:
             stem = key[:-2]
             if len(stem) >= 2:
-                # stopped -> stop
+                # stopped -> stop (double consonant)
                 if stem[-1] == stem[-2]:
                     return stem[:-1]
-                # used -> use
-                if not stem.endswith("e"):
-                    return stem + "e"
                 return stem
         if key.endswith("es") and len(key) > 4:
             stem = key[:-2]
@@ -200,6 +198,55 @@ class DictionaryService:
         if not word:
             return None
 
+        # 1. Try the original word through all providers
+        entry = self._try_providers(word)
+        if entry is not None:
+            lemma = self.lemmatizer.lemmatize(word)
+            if lemma and lemma != word:
+                entry = DictionaryEntry(
+                    word=entry.word,
+                    headword=lemma,
+                    phonetic=entry.phonetic,
+                    translation=entry.translation,
+                    pos=entry.pos,
+                    source=entry.source,
+                )
+            return entry
+
+        # 2. Try lemmatized form as fallback (e.g. "redesigned" -> "redesign")
+        lemma = self.lemmatizer.lemmatize(word)
+        if lemma and lemma != word:
+            entry = self._try_providers(lemma)
+            if entry is not None:
+                return DictionaryEntry(
+                    word=word,
+                    headword=lemma,
+                    phonetic=entry.phonetic,
+                    translation=entry.translation,
+                    pos=entry.pos,
+                    source=entry.source,
+                )
+
+        # 3. Try simple suffix-stripping for forms the lemmatizer didn't catch
+        for candidate in self._simple_online_fallbacks(word):
+            if candidate == word or (lemma and candidate == lemma):
+                continue
+            entry = self._try_providers(candidate)
+            if entry is not None:
+                return DictionaryEntry(
+                    word=word,
+                    headword=candidate,
+                    phonetic=entry.phonetic,
+                    translation=entry.translation,
+                    pos=entry.pos,
+                    source=entry.source,
+                )
+
+        logger.warning("No dictionary result found for word=%s", word)
+        return None
+
+    def _try_providers(self, word: str) -> DictionaryEntry | None:
+        """Run word through all online providers, returning first match."""
         for provider in (self._lookup_youdao, self._lookup_mymemory, self._lookup_freedict):
             try:
                 entry = provider(word)
@@ -210,20 +257,47 @@ class DictionaryService:
                 logger.exception("Unexpected online lookup failure for word=%s provider=%s", word, provider.__name__)
                 continue
             if entry is not None:
-                # Add lemma headword info
-                lemma = self.lemmatizer.lemmatize(word)
-                if lemma and lemma != word:
-                    entry = DictionaryEntry(
-                        word=entry.word,
-                        headword=lemma,
-                        phonetic=entry.phonetic,
-                        translation=entry.translation,
-                        pos=entry.pos,
-                        source=entry.source,
-                    )
                 return entry
-        logger.warning("No dictionary result found for word=%s", word)
         return None
+
+    @staticmethod
+    def _simple_online_fallbacks(word: str) -> list[str]:
+        """Generate simple suffix-stripping candidates for online lookup.
+
+        Unlike _candidate_forms (used by local lookup), this is conservative
+        and only strips well-known inflections without generating candidates
+        that require silent-'e' restoration. Uses elif to avoid double-
+        matching when a longer suffix (e.g. ``ies``) overlaps a shorter one
+        (e.g. ``s``).
+        """
+        candidates: list[str] = []
+        if word.endswith("ies") and len(word) > 4:
+            candidates.append(word[:-3] + "y")
+        elif word.endswith("ied") and len(word) > 4:
+            candidates.append(word[:-3] + "y")
+        elif word.endswith("ves") and len(word) > 4:
+            candidates.append(word[:-3] + "f")
+        elif word.endswith("ing") and len(word) > 5:
+            stem = word[:-3]
+            candidates.append(stem)
+            if len(stem) >= 2 and stem[-1] == stem[-2]:
+                candidates.append(stem[:-1])
+        elif word.endswith("ed") and len(word) > 4:
+            stem = word[:-2]
+            candidates.append(stem)
+            if len(stem) >= 2 and stem[-1] == stem[-2]:
+                candidates.append(stem[:-1])
+        elif word.endswith("es") and len(word) > 3:
+            stem = word[:-2]
+            if stem.endswith(("s", "x", "z", "sh", "ch")):
+                candidates.append(stem)
+            if len(stem) <= 3:
+                candidates.append(stem)
+        elif word.endswith("s") and len(word) > 3 and not word.endswith(("ss", "us")):
+            candidates.append(word[:-1])
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        return [c for c in candidates if not (c in seen or seen.add(c))]
 
     # ── Sentence-level translation ──────────────────────────────────────
     # Simple throttle: at most one request per 0.3s to avoid hitting rate limits.

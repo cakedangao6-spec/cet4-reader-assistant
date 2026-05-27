@@ -782,8 +782,13 @@ class MainWindow(QMainWindow):
         word = normalize_word(raw_word)
         if not word:
             return
-        if word not in self.vocab:
-            self.vocab.add(word)
+
+        # Lemmatize before saving to vocab: redesigned → redesign, customers → customer
+        lemma = self.dictionary.lemmatizer.lemmatize(word)
+        save_word = lemma if lemma and lemma != word else word
+
+        if save_word not in self.vocab:
+            self.vocab.add(save_word)
             self._refresh_vocab_list()
             self._refresh_stats()
             self.save_session()
@@ -795,14 +800,10 @@ class MainWindow(QMainWindow):
             return
         self._active_lookup_word = word
 
-        # 1. Show local dictionary result immediately
-        local_entry = self.dictionary.lookup(word)
-        if local_entry is not None:
-            self.detail_view.setHtml(self._format_lookup(word, local_entry))
-        else:
-            self.detail_view.setHtml(self._format_pending_lookup(word))
+        # 1. Immediately show "查询中…" while online runs in background
+        self.detail_view.setHtml(self._format_pending_lookup(word))
 
-        # 2. ALWAYS fire online lookup for better contextual translation
+        # 2. Fire online lookup first
         worker = LookupWorker(self.dictionary, word)
         worker.signals.finished.connect(self._on_lookup_finished)
         worker.signals.failed.connect(self._on_lookup_failed)
@@ -966,13 +967,27 @@ class MainWindow(QMainWindow):
     def _on_lookup_finished(self, word: str, entry: DictionaryEntry | None) -> None:
         if word != self._active_lookup_word:
             return
-        self.detail_view.setHtml(self._format_lookup(word, entry))
+        if entry is not None:
+            # Online found a result
+            self.detail_view.setHtml(self._format_lookup(word, entry))
+        else:
+            # Online returned nothing → fall back to local dictionary
+            local_entry = self.dictionary.lookup(word)
+            if local_entry is not None:
+                self.detail_view.setHtml(self._format_lookup(word, local_entry))
+            else:
+                self.detail_view.setHtml(self._format_lookup(word, None))
 
     def _on_lookup_failed(self, word: str, message: str) -> None:
         logger.warning("Lookup failed for word=%s error=%s", word, message)
         if word != self._active_lookup_word:
             return
-        self.detail_view.setHtml(self._format_lookup(word, None))
+        # Online lookup failed (network error etc.) → fall back to local dictionary
+        local_entry = self.dictionary.lookup(word)
+        if local_entry is not None:
+            self.detail_view.setHtml(self._format_lookup(word, local_entry))
+        else:
+            self.detail_view.setHtml(self._format_lookup(word, None))
 
     def _format_pending_lookup(self, word: str) -> str:
         safe_word = html.escape(word)
