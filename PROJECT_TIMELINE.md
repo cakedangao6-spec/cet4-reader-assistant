@@ -206,7 +206,7 @@
 
 ### 阶段9：启动器、图标与打包体验
 
-证据来源：当前工作区文件、`mode_switch_audio_restore_report.md`、`CLEANUP_PLAN.md`。
+证据来源：当前工作区文件、`mode_switch_audio_restore_report.md`、[`docs/reports/CLEANUP_PLAN.md`](./docs/reports/CLEANUP_PLAN.md)。
 
 主要内容：
 
@@ -288,4 +288,3 @@
 - 增加 CI 测试
 - 建立版本号和 release notes
 - 准备适合 GitHub 和简历展示的项目主页
-
