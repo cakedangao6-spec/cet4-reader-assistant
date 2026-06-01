@@ -13,9 +13,18 @@ node_modules/
 # Local assistant/tooling state
 .deepseek/
 
+# Deprecated local experiments and personal scratch images
+cet4-abloop-player/
+honglu.png
+Screenshot_2026-01-29-00-49-59-050_com.xingin.xhs.jpg
+cet4-reader-assistant/assets/app_icon_preview.png
+cet4-reader-assistant/assets/app_icon_crop_preview.png
+
 # Runtime caches and logs
 runtime/cache/
 **/runtime/cache/
+cache/listening/
+**/cache/listening/
 **/runtime/models/
 **/runtime/libreoffice-profiles/
 **/runtime/session.json

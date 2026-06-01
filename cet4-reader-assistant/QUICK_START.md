@@ -45,14 +45,14 @@
 
 1. 点击工具栏“导出 vocab.txt”
 2. 当前词表固定写入：
-   `D:\reasonix_sandbox\cet4-reader-assistant\vocab\vocab.txt`
+   `vocab\vocab.txt`
 3. 每天的历史快照固定写入：
-   `D:\reasonix_sandbox\cet4-reader-assistant\vocab\history\`
+   `vocab\history\`
 
 例如：
 
-- `D:\reasonix_sandbox\cet4-reader-assistant\vocab\vocab.txt`
-- `D:\reasonix_sandbox\cet4-reader-assistant\vocab\history\2026-05-17_20-11-35_vocab.txt`
+- `vocab\vocab.txt`
+- `vocab\history\2026-05-17_20-11-35_vocab.txt`
 
 ## 怎么打开生词目录
 

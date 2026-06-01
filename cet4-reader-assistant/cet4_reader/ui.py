@@ -8,16 +8,22 @@ import re
 import subprocess
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QPoint, QRunnable, QTimer, Qt, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QObject, QPoint, QRunnable, QTimer, Qt, QThreadPool, QUrl, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
+    QActionGroup,
     QColor,
     QMouseEvent,
+    QPainter,
+    QPen,
     QTextCharFormat,
     QTextCursor,
 )
+from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import (
+    QFileDialog,
     QFrame,
+    QComboBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -27,9 +33,12 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMessageBox,
+    QProgressBar,
     QPushButton,
+    QSlider,
     QSplitter,
     QStatusBar,
+    QStackedWidget,
     QTextBrowser,
     QTextEdit,
     QToolButton,
@@ -47,6 +56,16 @@ from .core import (
     write_vocab_file,
 )
 from .dictionary import DictionaryEntry, DictionaryService
+from .listening import (
+    DEFAULT_WHISPER_MODEL,
+    ListeningAnalyzer,
+    ListeningAnalysis,
+    build_article_export_text,
+    default_listening_export_path,
+    format_analysis_summary,
+    format_gpu_status,
+    select_transcription_runtime,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +123,34 @@ class TranslateWorker(QRunnable):
             self.signals.finished.emit(self.text, result or "")
         except Exception as exc:
             self.signals.failed.emit(self.text, str(exc))
+
+
+class ListeningAnalysisSignals(QObject):
+    finished = pyqtSignal(object)
+    failed = pyqtSignal(str)
+    progress = pyqtSignal(int, str)
+
+
+class ListeningAnalysisWorker(QRunnable):
+    def __init__(self, analyzer: ListeningAnalyzer, audio_path: Path, force: bool = False) -> None:
+        super().__init__()
+        self.analyzer = analyzer
+        self.audio_path = audio_path
+        self.force = force
+        self.signals = ListeningAnalysisSignals()
+
+    def run(self) -> None:
+        try:
+            self.signals.finished.emit(
+                self.analyzer.analyze(
+                    self.audio_path,
+                    progress_callback=lambda percent, text: self.signals.progress.emit(int(percent), text),
+                    force=self.force,
+                )
+            )
+        except Exception as exc:
+            logger.exception("Listening analysis failed for audio=%s", self.audio_path)
+            self.signals.failed.emit(str(exc))
 
 
 class ArticleView(QTextEdit):
@@ -262,12 +309,423 @@ class ArticleView(QTextEdit):
         return selected or self._word_at_cursor()
 
 
+class MarkerSlider(QSlider):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(Qt.Orientation.Horizontal, parent)
+        self._markers: list[float] = []
+
+    def set_markers(self, markers: list[float]) -> None:
+        self._markers = markers
+        self.update()
+
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        super().paintEvent(event)
+        if not self._markers:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor("#d9480f"), 2))
+        left = 10
+        width = max(1, self.width() - 20)
+        center_y = self.height() // 2
+        for marker in self._markers:
+            x = left + int(width * min(1.0, max(0.0, marker)))
+            painter.drawLine(x, center_y - 10, x, center_y + 10)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and self.maximum() > self.minimum():
+            ratio = min(1.0, max(0.0, event.position().x() / max(1, self.width())))
+            value = self.minimum() + int((self.maximum() - self.minimum()) * ratio)
+            self.setValue(value)
+            self.sliderMoved.emit(value)
+        super().mousePressEvent(event)
+
+
+class AudioPlayerWidget(QWidget):
+    audio_file_changed = pyqtSignal(object)
+    analysis_completed = pyqtSignal(object)
+
+    def __init__(self, cache_dir: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.cache_dir = cache_dir
+        self.thread_pool = QThreadPool.globalInstance()
+        self.analyzer = ListeningAnalyzer(cache_dir=self.cache_dir)
+        self.player = QMediaPlayer(self)
+        self.audio_output = QAudioOutput(self)
+        self.player.setAudioOutput(self.audio_output)
+        self.markers: list[tuple[int, str]] = []
+        self.articles: list[tuple[int, str]] = []
+        self.audio_path: Path | None = None
+        self.last_analysis: ListeningAnalysis | None = None
+        self.current_result_mode = "articles"
+        self._analysis_running = False
+        self._slider_dragging = False
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        top_row = QHBoxLayout()
+        self.import_button = QPushButton("导入音频", self)
+        self.import_button.clicked.connect(self.import_audio)
+        top_row.addWidget(self.import_button)
+
+        self.analyze_button = QPushButton("自动识别文章", self)
+        self.analyze_button.setEnabled(False)
+        self.analyze_button.clicked.connect(self.analyze_articles)
+        top_row.addWidget(self.analyze_button)
+
+        self.reanalyze_button = QPushButton("重新识别", self)
+        self.reanalyze_button.setEnabled(False)
+        self.reanalyze_button.clicked.connect(self.reanalyze_articles)
+        top_row.addWidget(self.reanalyze_button)
+
+        self.device_combo = QComboBox(self)
+        self.device_combo.addItem("CPU（稳定）", False)
+        self.device_combo.addItem("GPU（可选）", True)
+        top_row.addWidget(self.device_combo)
+
+        self.export_listening_button = QPushButton("导出听力文本", self)
+        self.export_listening_button.setEnabled(False)
+        self.export_listening_button.clicked.connect(self.export_listening_text)
+        top_row.addWidget(self.export_listening_button)
+
+        self.play_button = QPushButton("播放", self)
+        self.play_button.setEnabled(False)
+        self.play_button.clicked.connect(self.toggle_playback)
+        top_row.addWidget(self.play_button)
+
+        self.time_label = QLabel("00:00 / 00:00", self)
+        top_row.addWidget(self.time_label)
+        top_row.addStretch(1)
+        layout.addLayout(top_row)
+
+        self.slider = MarkerSlider(self)
+        self.slider.setRange(0, 0)
+        self.slider.sliderPressed.connect(self._on_slider_pressed)
+        self.slider.sliderReleased.connect(self._on_slider_released)
+        self.slider.sliderMoved.connect(self.player.setPosition)
+        layout.addWidget(self.slider)
+
+        progress_row = QHBoxLayout()
+        progress_row.addWidget(QLabel("识别进度", self))
+        self.analysis_progress = QProgressBar(self)
+        self.analysis_progress.setRange(0, 100)
+        self.analysis_progress.setValue(0)
+        self.analysis_progress.setTextVisible(True)
+        progress_row.addWidget(self.analysis_progress, 1)
+        layout.addLayout(progress_row)
+
+        article_row = QHBoxLayout()
+        article_row.addWidget(QLabel("识别结果", self))
+        self.result_mode_combo = QComboBox(self)
+        self.result_mode_combo.addItem("文章模式", "articles")
+        self.result_mode_combo.addItem("原始转写模式", "raw")
+        self.result_mode_combo.currentIndexChanged.connect(self._on_result_mode_changed)
+        article_row.addWidget(self.result_mode_combo)
+        self.analysis_status = QLabel("导入音频后可自动识别文章开头。", self)
+        article_row.addWidget(self.analysis_status, 1)
+        layout.addLayout(article_row)
+
+        self.article_list = QListWidget(self)
+        self.article_list.setMaximumHeight(120)
+        self.article_list.itemClicked.connect(self.jump_to_article)
+        layout.addWidget(self.article_list)
+
+        self.raw_transcript_view = QTextBrowser(self)
+        self.raw_transcript_view.setMaximumHeight(150)
+        self.raw_transcript_view.setPlaceholderText("原始转写会在识别完成后显示。")
+        self.raw_transcript_view.hide()
+        layout.addWidget(self.raw_transcript_view)
+
+        marker_row = QHBoxLayout()
+        self.add_marker_button = QPushButton("添加标记", self)
+        self.add_marker_button.setEnabled(False)
+        self.add_marker_button.clicked.connect(self.add_marker)
+        marker_row.addWidget(self.add_marker_button)
+
+        self.delete_marker_button = QPushButton("删除标记", self)
+        self.delete_marker_button.clicked.connect(self.delete_selected_marker)
+        marker_row.addWidget(self.delete_marker_button)
+
+        self.marker_list = QListWidget(self)
+        self.marker_list.setMaximumHeight(80)
+        self.marker_list.itemClicked.connect(self.jump_to_marker)
+        marker_row.addWidget(self.marker_list, 1)
+        layout.addLayout(marker_row)
+
+        self.player.positionChanged.connect(self._on_position_changed)
+        self.player.durationChanged.connect(self._on_duration_changed)
+        self.player.playbackStateChanged.connect(self._on_playback_state_changed)
+
+    def import_audio(self) -> None:
+        path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "导入听力音频",
+            "",
+            "音频文件 (*.mp3 *.m4a *.aac *.wav *.flac *.ogg *.opus *.wma *.mp4);;所有文件 (*)",
+        )
+        if path:
+            self.set_audio_file(Path(path))
+
+    def set_audio_file(self, path: Path, emit_changed: bool = True) -> None:
+        self.player.stop()
+        self.player.setSource(QUrl.fromLocalFile(str(path)))
+        self.audio_path = path
+        self.markers.clear()
+        self.articles.clear()
+        self.last_analysis = None
+        self.current_result_mode = "articles"
+        self.raw_transcript_view.clear()
+        self._refresh_markers()
+        self._refresh_articles()
+        self.play_button.setEnabled(True)
+        self.add_marker_button.setEnabled(True)
+        self.analyze_button.setEnabled(True)
+        self.reanalyze_button.setEnabled(True)
+        self.export_listening_button.setEnabled(False)
+        self.play_button.setText("播放")
+        self.analysis_status.setText("已导入音频，可点击“自动识别文章”。")
+        if emit_changed:
+            self.audio_file_changed.emit(path)
+
+    def toggle_playback(self) -> None:
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.player.pause()
+        else:
+            self.player.play()
+
+    def add_marker(self) -> None:
+        position = self.player.position()
+        if position < 0:
+            return
+        note, accepted = QInputDialog.getText(self, "添加标记", "备注题号（可为空）")
+        if not accepted:
+            return
+        if all(abs(position - marker_position) > 500 for marker_position, _note in self.markers):
+            self.markers.append((position, note.strip()))
+            self.markers.sort(key=lambda marker: marker[0])
+            self._refresh_markers()
+
+    def jump_to_marker(self, item: QListWidgetItem) -> None:
+        marker = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(marker, int):
+            self.player.setPosition(marker)
+
+    def jump_to_article(self, item: QListWidgetItem) -> None:
+        position = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(position, int):
+            self.player.setPosition(position)
+            if self.player.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
+                self.player.play()
+
+    def analyze_articles(self) -> None:
+        self._start_analysis(force=False)
+
+    def reanalyze_articles(self) -> None:
+        self._start_analysis(force=True)
+
+    def _start_analysis(self, force: bool) -> None:
+        if self.audio_path is None:
+            self.analysis_status.setText("请先导入听力音频。")
+            return
+        if self._analysis_running:
+            return
+        prefer_gpu = bool(self.device_combo.currentData())
+        self.analyzer.prefer_gpu = prefer_gpu
+        self._analysis_running = True
+        self.analyze_button.setEnabled(False)
+        self.reanalyze_button.setEnabled(False)
+        self.export_listening_button.setEnabled(False)
+        runtime = select_transcription_runtime(prefer_gpu)
+        device_label = "GPU" if runtime.runtime_device == "cuda" else "CPU"
+        requested = "请求 GPU，正在初始化..." if prefer_gpu else "CPU：稳定模式"
+        action = "重新识别" if force else "识别"
+        self.analysis_status.setText(
+            f"正在{action}文章开头。{requested} 设备：{device_label}，模型：{DEFAULT_WHISPER_MODEL}，精度：{runtime.compute_type}。"
+        )
+        self.analysis_progress.setValue(0)
+        worker = ListeningAnalysisWorker(self.analyzer, self.audio_path, force=force)
+        worker.signals.finished.connect(self._on_analysis_finished)
+        worker.signals.failed.connect(self._on_analysis_failed)
+        worker.signals.progress.connect(self._on_analysis_progress)
+        self.thread_pool.start(worker)
+
+    def delete_selected_marker(self) -> None:
+        item = self.marker_list.currentItem()
+        if item is None:
+            return
+        marker = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(marker, int):
+            self.markers = [
+                (marker_position, note)
+                for marker_position, note in self.markers
+                if marker_position != marker
+            ]
+            self._refresh_markers()
+
+    def reset(self) -> None:
+        self.player.stop()
+        self.player.setSource(QUrl())
+        self.audio_path = None
+        self.markers.clear()
+        self.articles.clear()
+        self.last_analysis = None
+        self.current_result_mode = "articles"
+        self.raw_transcript_view.clear()
+        self._analysis_running = False
+        self.slider.setRange(0, 0)
+        self.slider.setValue(0)
+        self._refresh_markers()
+        self._refresh_articles()
+        self.time_label.setText("00:00 / 00:00")
+        self.play_button.setText("播放")
+        self.play_button.setEnabled(False)
+        self.add_marker_button.setEnabled(False)
+        self.analyze_button.setEnabled(False)
+        self.reanalyze_button.setEnabled(False)
+        self.export_listening_button.setEnabled(False)
+        self.analysis_status.setText("导入音频后可自动识别文章开头。")
+        self.analysis_progress.setValue(0)
+        self.audio_file_changed.emit(None)
+
+    def _on_slider_pressed(self) -> None:
+        self._slider_dragging = True
+
+    def _on_slider_released(self) -> None:
+        self._slider_dragging = False
+        self.player.setPosition(self.slider.value())
+
+    def _on_position_changed(self, position: int) -> None:
+        if not self._slider_dragging:
+            self.slider.setValue(position)
+        self._refresh_time_label(position, self.player.duration())
+
+    def _on_duration_changed(self, duration: int) -> None:
+        self.slider.setRange(0, max(0, duration))
+        self._refresh_time_label(self.player.position(), duration)
+        self._refresh_markers()
+
+    def _on_playback_state_changed(self, state: QMediaPlayer.PlaybackState) -> None:
+        self.play_button.setText("暂停" if state == QMediaPlayer.PlaybackState.PlayingState else "播放")
+
+    def _refresh_markers(self) -> None:
+        self.marker_list.clear()
+        for index, (marker, note) in enumerate(self.markers, start=1):
+            label = f"{note} - {self._format_time(marker)}" if note else self._format_time(marker)
+            item = QListWidgetItem(f"{index}. {label}")
+            item.setData(Qt.ItemDataRole.UserRole, marker)
+            self.marker_list.addItem(item)
+        duration = self.player.duration()
+        positions = [marker / duration for marker, _note in self.markers] if duration > 0 else []
+        self.slider.set_markers(positions)
+
+    def _refresh_articles(self) -> None:
+        self.article_list.clear()
+        for position, title in self.articles:
+            item = QListWidgetItem(f"{title}   {self._format_time(position)}")
+            item.setData(Qt.ItemDataRole.UserRole, position)
+            self.article_list.addItem(item)
+
+    def _on_analysis_finished(self, analysis: ListeningAnalysis) -> None:
+        self._analysis_running = False
+        self.last_analysis = analysis
+        self.articles = [(int(item.start * 1000), item.title) for item in analysis.articles]
+        self._refresh_articles()
+        self.analyze_button.setEnabled(self.audio_path is not None)
+        self.reanalyze_button.setEnabled(self.audio_path is not None)
+        self.export_listening_button.setEnabled(True)
+        self.analysis_progress.setValue(100)
+        source = "缓存" if analysis.from_cache else "转录"
+        summary = format_analysis_summary(analysis)
+        self.raw_transcript_view.setPlainText(analysis.transcript_text)
+        if self.articles:
+            self.set_result_mode("articles")
+            self.analysis_status.setText(
+                f"已从{source}生成识别结果。{summary}。"
+            )
+        else:
+            self.set_result_mode("raw")
+            self.analysis_status.setText(
+                f"未能自动切分文章，但已保留原始识别结果。{summary}。"
+            )
+        self.analysis_completed.emit(analysis)
+
+    def _on_analysis_failed(self, message: str) -> None:
+        self._analysis_running = False
+        self.analyze_button.setEnabled(self.audio_path is not None)
+        self.reanalyze_button.setEnabled(self.audio_path is not None)
+        self.export_listening_button.setEnabled(self.last_analysis is not None)
+        self.analysis_progress.setValue(0)
+        self.analysis_status.setText(f"识别失败：{message}")
+
+    def _on_analysis_progress(self, percent: int, text: str) -> None:
+        self.analysis_progress.setValue(min(99, max(0, percent)))
+        preview = text.strip()
+        if preview:
+            self.analysis_status.setText(f"正在识别：{self.analysis_progress.value()}%  {preview[:80]}")
+
+    @staticmethod
+    def _format_analysis_device(analysis: ListeningAnalysis) -> str:
+        return format_gpu_status(analysis)
+
+    def _on_result_mode_changed(self) -> None:
+        mode = self.result_mode_combo.currentData()
+        self.current_result_mode = str(mode or "articles")
+        show_raw = self.current_result_mode == "raw"
+        self.article_list.setVisible(not show_raw)
+        self.raw_transcript_view.setVisible(show_raw)
+
+    def set_result_mode(self, mode: str) -> None:
+        target = "raw" if mode == "raw" else "articles"
+        self.current_result_mode = target
+        index = self.result_mode_combo.findData(target)
+        if index >= 0 and self.result_mode_combo.currentIndex() != index:
+            self.result_mode_combo.setCurrentIndex(index)
+        else:
+            self._on_result_mode_changed()
+
+    def export_listening_text(self) -> None:
+        if self.last_analysis is None:
+            self.analysis_status.setText("请先完成听力识别。")
+            return
+        audio_path = Path(self.last_analysis.audio_path) if self.last_analysis.audio_path else self.audio_path
+        default_path = default_listening_export_path(audio_path) if audio_path is not None else Path("listening_articles.txt")
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "导出听力文本",
+            str(default_path),
+            "文本文件 (*.txt);;所有文件 (*)",
+        )
+        if not path:
+            return
+        try:
+            Path(path).write_text(build_article_export_text(self.last_analysis), encoding="utf-8")
+        except OSError as exc:
+            self.analysis_status.setText(f"导出失败：{exc}")
+            return
+        self.analysis_status.setText(f"已导出听力文本：{path}")
+
+    def _refresh_time_label(self, position: int, duration: int) -> None:
+        self.time_label.setText(f"{self._format_time(position)} / {self._format_time(duration)}")
+
+    @staticmethod
+    def _format_time(milliseconds: int) -> str:
+        total_seconds = max(0, milliseconds) // 1000
+        minutes, seconds = divmod(total_seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        return f"{minutes:02d}:{seconds:02d}"
+
+
 class MainWindow(QMainWindow):
     def __init__(self, base_dir: Path | None = None) -> None:
         super().__init__()
         self.base_dir = base_dir or Path(__file__).resolve().parents[1]
         self.runtime_dir = self.base_dir / "runtime"
         self.session_path = self.runtime_dir / "session.json"
+        self.listening_cache_dir = self.base_dir / "cache" / "listening"
         self.history_dir = self.base_dir / "vocab" / "history"
         self.legacy_history_dir = self.base_dir / "data" / "history"
         self.export_path = self.base_dir / "vocab" / "vocab.txt"
@@ -280,6 +738,8 @@ class MainWindow(QMainWindow):
         self._search_index = -1
         self._current_highlight_color = QColor(DEFAULT_HIGHLIGHT_COLOR)
         self._last_text_editor: ArticleView | None = None
+        self.mode = "reading"
+        self.saved_audio_path: Path | None = None
 
         self.setWindowTitle("CET-4 阅读助手")
         self.resize(1180, 760)
@@ -309,6 +769,21 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
+        self.mode_actions = QActionGroup(self)
+        self.mode_actions.setExclusive(True)
+        self.reading_mode_action = QAction("阅读模式", self)
+        self.reading_mode_action.setCheckable(True)
+        self.reading_mode_action.setChecked(True)
+        self.mode_actions.addAction(self.reading_mode_action)
+        toolbar.addAction(self.reading_mode_action)
+
+        self.listening_mode_action = QAction("听力模式", self)
+        self.listening_mode_action.setCheckable(True)
+        self.mode_actions.addAction(self.listening_mode_action)
+        toolbar.addAction(self.listening_mode_action)
+        self.mode_actions.triggered.connect(self._on_mode_action_triggered)
+        toolbar.addSeparator()
+
         self.open_vocab_dir_action = QAction("打开生词本目录", self)
         self.open_vocab_dir_action.triggered.connect(self.open_vocab_dir)
         toolbar.addAction(self.open_vocab_dir_action)
@@ -326,12 +801,20 @@ class MainWindow(QMainWindow):
         self.search_input.textChanged.connect(self._update_search_results)
         self.search_input.hide()
         self.search_status = QLabel("", self)
+        self.search_status.hide()
+        self.search_status.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
         root = QSplitter(Qt.Orientation.Horizontal, self)
         self.setCentralWidget(root)
 
+        self.mode_stack = QStackedWidget(self)
+        root.addWidget(self.mode_stack)
+
+        self.reading_page = QWidget(self)
+        reading_layout = QVBoxLayout(self.reading_page)
+        reading_layout.setContentsMargins(0, 0, 0, 0)
         left_splitter = QSplitter(Qt.Orientation.Vertical, self)
-        root.addWidget(left_splitter)
+        reading_layout.addWidget(left_splitter)
 
         article_section = QWidget(self)
         article_layout = QVBoxLayout(article_section)
@@ -368,6 +851,28 @@ class MainWindow(QMainWindow):
         question_layout.addWidget(self.question_view)
         left_splitter.addWidget(question_section)
         left_splitter.setSizes([520, 240])
+        self.mode_stack.addWidget(self.reading_page)
+
+        self.listening_page = QWidget(self)
+        listening_layout = QVBoxLayout(self.listening_page)
+        listening_layout.setContentsMargins(0, 0, 0, 0)
+        listening_layout.setSpacing(8)
+        self.audio_player = AudioPlayerWidget(cache_dir=self.listening_cache_dir, parent=self)
+        self.audio_player.audio_file_changed.connect(self._on_audio_file_changed)
+        self.audio_player.analysis_completed.connect(self._on_listening_analysis_completed)
+        listening_layout.addWidget(self.audio_player)
+        listening_layout.addWidget(QLabel("题目区"))
+        self.listening_question_view = ArticleView()
+        self.listening_question_view.setPlaceholderText("听力题目区：粘贴内容会全部保留在这里，不自动拆分。")
+        self.listening_question_view.word_clicked.connect(self.show_lookup)
+        self.listening_question_view.word_added.connect(self.add_word)
+        self.listening_question_view.translate_selected.connect(self._on_translate_selection)
+        self.listening_question_view.formatting_changed.connect(self.save_session)
+        self.listening_question_view.textChanged.connect(self._on_question_text_changed)
+        self.listening_question_view.focused.connect(lambda: self._set_last_text_editor(self.listening_question_view))
+        self.listening_question_view.set_lemmatizer(None)
+        listening_layout.addWidget(self.listening_question_view, 1)
+        self.mode_stack.addWidget(self.listening_page)
 
         # ── Formatting toolbar ──
         fmt_toolbar = QToolBar("format", self)
@@ -457,9 +962,9 @@ class MainWindow(QMainWindow):
         remove_button.clicked.connect(self.remove_selected_word)
         sidebar_layout.addWidget(remove_button)
 
-        clear_all_button = QPushButton("清空全部")
-        clear_all_button.clicked.connect(self.reset_session)
-        sidebar_layout.addWidget(clear_all_button)
+        self.clear_vocab_button = QPushButton("清空全部")
+        self.clear_vocab_button.clicked.connect(self.clear_vocab)
+        sidebar_layout.addWidget(self.clear_vocab_button)
 
         detail_header = QLabel("查词")
         sidebar_layout.addWidget(detail_header)
@@ -502,7 +1007,40 @@ class MainWindow(QMainWindow):
         self._update_search_results()
 
     def _on_question_text_changed(self) -> None:
+        self._refresh_stats()
         self._update_search_results()
+
+    def switch_mode(self, mode: str) -> None:
+        if mode not in {"reading", "listening"}:
+            return
+        self.mode = mode
+        target_page = self.reading_page if mode == "reading" else self.listening_page
+        self.mode_stack.setCurrentWidget(target_page)
+        self.reading_mode_action.setChecked(mode == "reading")
+        self.listening_mode_action.setChecked(mode == "listening")
+        self._last_text_editor = self.question_view if mode == "reading" else self.listening_question_view
+        self._last_text_editor.setFocus(Qt.FocusReason.OtherFocusReason)
+        self._clear_search_highlights()
+        self._search_matches = []
+        self._search_index = -1
+        self._refresh_stats()
+        self._update_search_results()
+        self.save_session()
+
+    def _on_mode_action_triggered(self, action: QAction) -> None:
+        if action is self.reading_mode_action:
+            self.switch_mode("reading")
+        elif action is self.listening_mode_action:
+            self.switch_mode("listening")
+
+    def _on_audio_file_changed(self, path: object) -> None:
+        self.saved_audio_path = path if isinstance(path, Path) else None
+        self.save_session()
+
+    def _on_listening_analysis_completed(self, analysis: object) -> None:
+        if not isinstance(analysis, ListeningAnalysis):
+            return
+        self.save_session()
 
     def _handle_article_paste(self, text: str) -> None:
         article_text, question_text = self._split_article_questions(text)
@@ -585,8 +1123,9 @@ class MainWindow(QMainWindow):
         return editor.textCursor().selectedText().replace("\u2029", "\n")
 
     def _text_editors(self) -> list[ArticleView]:
+        names = ("article_view", "question_view") if self.mode == "reading" else ("listening_question_view",)
         editors: list[ArticleView] = []
-        for name in ("article_view", "question_view"):
+        for name in names:
             editor = getattr(self, name, None)
             if isinstance(editor, ArticleView):
                 editors.append(editor)
@@ -837,6 +1376,9 @@ class MainWindow(QMainWindow):
     def reset_session(self) -> None:
         self.article_view.clear()
         self.question_view.clear()
+        self.listening_question_view.clear()
+        self.audio_player.reset()
+        self.saved_audio_path = None
         self.vocab.clear()
         self._refresh_vocab_list()
         self.search_input.clear()
@@ -899,6 +1441,15 @@ class MainWindow(QMainWindow):
         self.vocab_list.blockSignals(False)
 
     def _refresh_stats(self) -> None:
+        if self.mode == "listening" and hasattr(self, "listening_question_view"):
+            stats = calculate_stats(self.listening_question_view.toPlainText(), self.vocab)
+            self.stats_label.setText(
+                "听力模式\n"
+                f"题目词数  {stats.total_words}\n"
+                f"生词数  {stats.unknown_words}\n"
+                f"生词比例  {stats.unknown_ratio:.1%}"
+            )
+            return
         stats = calculate_stats(self.article_text, self.vocab)
         self.stats_label.setText(
             f"总词数  {stats.total_words}\n"
@@ -944,19 +1495,46 @@ class MainWindow(QMainWindow):
         else:
             self.question_view.setPlainText(question_text)
 
+        listening_question_text = str(payload.get("listening_question_text") or "")
+        listening_question_html = payload.get("listening_question_html")
+        if isinstance(listening_question_html, str) and listening_question_html.strip():
+            self.listening_question_view.setHtml(listening_question_html)
+        else:
+            self.listening_question_view.setPlainText(listening_question_text)
+
         raw_vocab = payload.get("vocab")
         if isinstance(raw_vocab, list):
             self.vocab = {normalize_word(str(word)) for word in raw_vocab if normalize_word(str(word))}
+
+        audio_path = str(payload.get("audio_path") or "")
+        if audio_path:
+            candidate = Path(audio_path)
+            if candidate.exists():
+                self.saved_audio_path = candidate
+                self.audio_player.set_audio_file(candidate, emit_changed=False)
+                self.statusBar().showMessage(f"已恢复上次音频：{candidate.name}", 4000)
+            else:
+                self.saved_audio_path = None
+                self.statusBar().showMessage("上次导入的音频文件不存在，已清除记录。", 5000)
+                self.save_session()
+
+        mode = str(payload.get("mode") or "reading")
+        if mode == "listening":
+            self.switch_mode("listening")
         self._refresh_vocab_list()
         self._refresh_stats()
 
     def save_session(self) -> None:
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
         payload = {
+            "mode": self.mode,
             "article_text": self.article_view.toPlainText(),
             "article_html": self.article_view.toHtml(),
             "question_text": self.question_view.toPlainText(),
             "question_html": self.question_view.toHtml(),
+            "listening_question_text": self.listening_question_view.toPlainText(),
+            "listening_question_html": self.listening_question_view.toHtml(),
+            "audio_path": str(self.saved_audio_path) if self.saved_audio_path is not None else "",
             "vocab": sort_vocab(self.vocab),
         }
         self.session_path.write_text(
