@@ -55,6 +55,7 @@ from .core import (
     update_summary_history_file,
     write_vocab_file,
 )
+from .app_icon import load_app_icon
 from .dictionary import DictionaryEntry, DictionaryService
 from .listening import (
     DEFAULT_WHISPER_MODEL,
@@ -742,6 +743,9 @@ class MainWindow(QMainWindow):
         self.saved_audio_path: Path | None = None
 
         self.setWindowTitle("CET-4 阅读助手")
+        icon = load_app_icon(self.base_dir)
+        if not icon.isNull():
+            self.setWindowIcon(icon)
         self.resize(1180, 760)
         self._build_ui()
         self._install_shortcuts()
