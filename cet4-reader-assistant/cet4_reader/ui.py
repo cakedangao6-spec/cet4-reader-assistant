@@ -1335,6 +1335,7 @@ class MainWindow(QMainWindow):
             self._refresh_vocab_list()
             self._refresh_stats()
             self.save_session()
+        self._select_vocab_word(save_word)
         self.show_lookup(word)
 
     def show_lookup(self, raw_word: str) -> None:
@@ -1420,19 +1421,24 @@ class MainWindow(QMainWindow):
             if old_text:
                 self.vocab.discard(old_text)
             self._refresh_vocab_list()
-        elif new_text != old_text:
+        else:
             # Word changed
-            if old_text:
+            if old_text and new_text != old_text:
                 self.vocab.discard(old_text)
             self.vocab.add(new_text)
             self._refresh_vocab_list()
-            # Re-select the new word
-            for i in range(self.vocab_list.count()):
-                if self.vocab_list.item(i).text() == new_text:
-                    self.vocab_list.setCurrentRow(i)
-                    break
+            self._select_vocab_word(new_text)
         self._refresh_stats()
         self.save_session()
+
+    def _select_vocab_word(self, word: str) -> bool:
+        for i in range(self.vocab_list.count()):
+            item = self.vocab_list.item(i)
+            if item.text() == word:
+                self.vocab_list.setCurrentRow(i)
+                self.vocab_list.scrollToItem(item)
+                return True
+        return False
 
     def _refresh_vocab_list(self) -> None:
         self.vocab_list.blockSignals(True)

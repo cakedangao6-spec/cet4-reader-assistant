@@ -79,10 +79,97 @@ class PasteArticleFlowTests(unittest.TestCase):
             with patch.object(window, "show_lookup"):
                 window.add_word("music")
             self.assertIn("music", window.vocab)
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
             self.assertIn("生词数  2", window.stats_label.text())
 
             window.export_vocab()
             self.assertEqual((base_dir / "vocab" / "vocab.txt").read_text(encoding="utf-8"), "music\nsociety\n")
+            window.close()
+
+    def test_add_word_selects_existing_vocab_item_on_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"music", "society"}
+            window._refresh_vocab_list()
+
+            with patch.object(window, "show_lookup"):
+                window.add_word("music")
+
+            self.assertEqual(window.vocab, {"music", "society"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
+            window.close()
+
+    def test_manual_add_clears_input_and_selects_added_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.manual_word_input.setText("Music!")
+
+            with patch.object(window, "show_lookup"):
+                window.add_manual_word()
+
+            self.assertEqual(window.manual_word_input.text(), "")
+            self.assertEqual(window.vocab, {"music"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
+            window.close()
+
+    def test_add_word_selects_lemmatized_saved_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+
+            with patch.object(window, "show_lookup"):
+                window.add_word("studying")
+
+            self.assertEqual(window.vocab, {"study"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "study")  # type: ignore[union-attr]
+            window.close()
+
+    def test_edit_vocab_item_replaces_and_selects_new_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"study"}
+            window._refresh_vocab_list()
+            item = window.vocab_list.item(0)
+
+            item.setText("studying")
+            QApplication.processEvents()
+
+            self.assertEqual(window.vocab, {"studying"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "studying")  # type: ignore[union-attr]
+            window.close()
+
+    def test_edit_vocab_item_merges_existing_word_and_selects_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"music", "society"}
+            window._refresh_vocab_list()
+            society_item = window.vocab_list.item(1)
+
+            society_item.setText("music")
+            QApplication.processEvents()
+
+            self.assertEqual(window.vocab, {"music"})
+            self.assertEqual(window.vocab_list.count(), 1)
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
+            window.close()
+
+    def test_edit_vocab_item_to_empty_deletes_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"music"}
+            window._refresh_vocab_list()
+            item = window.vocab_list.item(0)
+
+            item.setText("")
+            QApplication.processEvents()
+
+            self.assertEqual(window.vocab, set())
+            self.assertEqual(window.vocab_list.count(), 0)
             window.close()
 
     def test_repeated_exports_merge_into_daily_and_summary_files(self) -> None:
