@@ -14,6 +14,7 @@ from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QToolBar, QToolButton
 from PyQt6.QtGui import QTextCursor
 
+from cet4_reader.exam_paper import ExamPaperParseError, ExamPaperPassage
 from cet4_reader.ui import MainWindow
 from cet4_reader.listening import (
     ListeningAnalyzer,
@@ -79,10 +80,97 @@ class PasteArticleFlowTests(unittest.TestCase):
             with patch.object(window, "show_lookup"):
                 window.add_word("music")
             self.assertIn("music", window.vocab)
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
             self.assertIn("生词数  2", window.stats_label.text())
 
             window.export_vocab()
             self.assertEqual((base_dir / "vocab" / "vocab.txt").read_text(encoding="utf-8"), "music\nsociety\n")
+            window.close()
+
+    def test_add_word_selects_existing_vocab_item_on_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"music", "society"}
+            window._refresh_vocab_list()
+
+            with patch.object(window, "show_lookup"):
+                window.add_word("music")
+
+            self.assertEqual(window.vocab, {"music", "society"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
+            window.close()
+
+    def test_manual_add_clears_input_and_selects_added_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.manual_word_input.setText("Music!")
+
+            with patch.object(window, "show_lookup"):
+                window.add_manual_word()
+
+            self.assertEqual(window.manual_word_input.text(), "")
+            self.assertEqual(window.vocab, {"music"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
+            window.close()
+
+    def test_add_word_selects_lemmatized_saved_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+
+            with patch.object(window, "show_lookup"):
+                window.add_word("studying")
+
+            self.assertEqual(window.vocab, {"study"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "study")  # type: ignore[union-attr]
+            window.close()
+
+    def test_edit_vocab_item_replaces_and_selects_new_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"study"}
+            window._refresh_vocab_list()
+            item = window.vocab_list.item(0)
+
+            item.setText("studying")
+            QApplication.processEvents()
+
+            self.assertEqual(window.vocab, {"studying"})
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "studying")  # type: ignore[union-attr]
+            window.close()
+
+    def test_edit_vocab_item_merges_existing_word_and_selects_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"music", "society"}
+            window._refresh_vocab_list()
+            society_item = window.vocab_list.item(1)
+
+            society_item.setText("music")
+            QApplication.processEvents()
+
+            self.assertEqual(window.vocab, {"music"})
+            self.assertEqual(window.vocab_list.count(), 1)
+            self.assertIsNotNone(window.vocab_list.currentItem())
+            self.assertEqual(window.vocab_list.currentItem().text(), "music")  # type: ignore[union-attr]
+            window.close()
+
+    def test_edit_vocab_item_to_empty_deletes_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.vocab = {"music"}
+            window._refresh_vocab_list()
+            item = window.vocab_list.item(0)
+
+            item.setText("")
+            QApplication.processEvents()
+
+            self.assertEqual(window.vocab, set())
+            self.assertEqual(window.vocab_list.count(), 0)
             window.close()
 
     def test_repeated_exports_merge_into_daily_and_summary_files(self) -> None:
@@ -183,12 +271,55 @@ class PasteArticleFlowTests(unittest.TestCase):
             translate.assert_called_once_with("Question sentence.")
             window.close()
 
-    def test_toolbar_has_no_file_import_actions(self) -> None:
+    def test_toolbar_has_exam_pdf_import_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
             labels = [action.text() for toolbar in window.findChildren(QToolBar) for action in toolbar.actions()]
-            self.assertNotIn("上传图片", labels)
-            self.assertNotIn("导入TXT", labels)
+            self.assertIn("导入试卷 PDF", labels)
+            window.close()
+
+    def test_exam_passage_combo_loads_selected_passage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            passages = [
+                ExamPaperPassage(
+                    title="选词填空 26-35",
+                    section="Section A",
+                    question_range="26-35",
+                    article_text="Section A article.",
+                    question_text="26. First blank.",
+                ),
+                ExamPaperPassage(
+                    title="第一篇短篇阅读 46-50",
+                    section="Section C",
+                    question_range="46-50",
+                    article_text="Panda passage body.",
+                    question_text="46. What do experts say?\nA) Habitat matters.",
+                ),
+            ]
+
+            window.set_exam_passages(passages)
+            self.assertEqual(window.exam_passage_combo.count(), 3)
+            window.exam_passage_combo.setCurrentIndex(2)
+
+            self.assertEqual(window.article_view.toPlainText(), "Panda passage body.")
+            self.assertIn("46. What do experts say?", window.question_view.toPlainText())
+            window.close()
+
+    def test_exam_import_failure_keeps_existing_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.article_view.setPlainText("Existing article.")
+            window.question_view.setPlainText("Existing question.")
+
+            with patch("cet4_reader.ui.QFileDialog.getOpenFileName", return_value=("paper.pdf", "PDF 文件 (*.pdf)")):
+                with patch("cet4_reader.ui.parse_exam_pdf", side_effect=ExamPaperParseError("bad pdf")):
+                    with patch("cet4_reader.ui.QMessageBox.warning") as warning:
+                        window.import_exam_pdf()
+
+            warning.assert_called_once()
+            self.assertEqual(window.article_view.toPlainText(), "Existing article.")
+            self.assertEqual(window.question_view.toPlainText(), "Existing question.")
             window.close()
 
     def test_startup_does_not_initialize_dictionary(self) -> None:

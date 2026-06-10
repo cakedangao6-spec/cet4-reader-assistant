@@ -57,6 +57,7 @@ from .core import (
 )
 from .app_icon import load_app_icon
 from .dictionary import DictionaryEntry, DictionaryService
+from .exam_paper import ExamPaperParseError, ExamPaperPassage, parse_exam_pdf
 from .listening import (
     DEFAULT_WHISPER_MODEL,
     ListeningAnalyzer,
@@ -741,6 +742,7 @@ class MainWindow(QMainWindow):
         self._last_text_editor: ArticleView | None = None
         self.mode = "reading"
         self.saved_audio_path: Path | None = None
+        self.exam_passages: list[ExamPaperPassage] = []
 
         self.setWindowTitle("CET-4 阅读助手")
         icon = load_app_icon(self.base_dir)
@@ -796,6 +798,10 @@ class MainWindow(QMainWindow):
         self.export_action.triggered.connect(self.export_vocab)
         toolbar.addAction(self.export_action)
 
+        self.import_exam_action = QAction("导入试卷 PDF", self)
+        self.import_exam_action.triggered.connect(self.import_exam_pdf)
+        toolbar.addAction(self.import_exam_action)
+
         self.reset_action = QAction("一键清空 / 重新开始", self)
         self.reset_action.triggered.connect(self.reset_session)
         toolbar.addAction(self.reset_action)
@@ -817,6 +823,16 @@ class MainWindow(QMainWindow):
         self.reading_page = QWidget(self)
         reading_layout = QVBoxLayout(self.reading_page)
         reading_layout.setContentsMargins(0, 0, 0, 0)
+
+        exam_row = QHBoxLayout()
+        exam_row.addWidget(QLabel("试卷篇章", self))
+        self.exam_passage_combo = QComboBox(self)
+        self.exam_passage_combo.addItem("先导入试卷 PDF", None)
+        self.exam_passage_combo.setEnabled(False)
+        self.exam_passage_combo.currentIndexChanged.connect(self._on_exam_passage_selected)
+        exam_row.addWidget(self.exam_passage_combo, 1)
+        reading_layout.addLayout(exam_row)
+
         left_splitter = QSplitter(Qt.Orientation.Vertical, self)
         reading_layout.addWidget(left_splitter)
 
@@ -1044,6 +1060,61 @@ class MainWindow(QMainWindow):
     def _on_listening_analysis_completed(self, analysis: object) -> None:
         if not isinstance(analysis, ListeningAnalysis):
             return
+        self.save_session()
+
+    def import_exam_pdf(self) -> None:
+        path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "导入四级试卷 PDF",
+            "",
+            "PDF 文件 (*.pdf);;所有文件 (*)",
+        )
+        if not path:
+            return
+
+        try:
+            passages = parse_exam_pdf(Path(path))
+        except ExamPaperParseError as exc:
+            QMessageBox.warning(self, "导入失败", str(exc))
+            return
+        except Exception as exc:
+            logger.exception("Exam PDF import failed for path=%s", path)
+            QMessageBox.warning(self, "导入失败", f"无法解析试卷：{exc}")
+            return
+
+        self.switch_mode("reading")
+        self.set_exam_passages(passages)
+
+    def set_exam_passages(self, passages: list[ExamPaperPassage]) -> None:
+        self.exam_passages = list(passages)
+        self.exam_passage_combo.blockSignals(True)
+        self.exam_passage_combo.clear()
+        if not self.exam_passages:
+            self.exam_passage_combo.addItem("未识别到阅读篇章", None)
+            self.exam_passage_combo.setEnabled(False)
+            self.exam_passage_combo.blockSignals(False)
+            return
+
+        self.exam_passage_combo.addItem("选择要展示的篇章", None)
+        for index, passage in enumerate(self.exam_passages):
+            self.exam_passage_combo.addItem(passage.title, index)
+        self.exam_passage_combo.setCurrentIndex(0)
+        self.exam_passage_combo.setEnabled(True)
+        self.exam_passage_combo.blockSignals(False)
+        self.statusBar().showMessage(f"已识别 {len(self.exam_passages)} 个阅读篇章。", 4000)
+
+    def _on_exam_passage_selected(self, _index: int = -1) -> None:
+        data = self.exam_passage_combo.currentData()
+        if not isinstance(data, int) or data < 0 or data >= len(self.exam_passages):
+            return
+
+        passage = self.exam_passages[data]
+        self.article_view.setPlainText(passage.article_text)
+        self.question_view.setPlainText(passage.question_text)
+        self._clear_search_highlights()
+        self._search_matches = []
+        self._search_index = -1
+        self.statusBar().showMessage(f"已载入：{passage.title}", 3000)
         self.save_session()
 
     def _handle_article_paste(self, text: str) -> None:
@@ -1335,6 +1406,7 @@ class MainWindow(QMainWindow):
             self._refresh_vocab_list()
             self._refresh_stats()
             self.save_session()
+        self._select_vocab_word(save_word)
         self.show_lookup(word)
 
     def show_lookup(self, raw_word: str) -> None:
@@ -1383,6 +1455,7 @@ class MainWindow(QMainWindow):
         self.listening_question_view.clear()
         self.audio_player.reset()
         self.saved_audio_path = None
+        self.set_exam_passages([])
         self.vocab.clear()
         self._refresh_vocab_list()
         self.search_input.clear()
@@ -1420,19 +1493,24 @@ class MainWindow(QMainWindow):
             if old_text:
                 self.vocab.discard(old_text)
             self._refresh_vocab_list()
-        elif new_text != old_text:
+        else:
             # Word changed
-            if old_text:
+            if old_text and new_text != old_text:
                 self.vocab.discard(old_text)
             self.vocab.add(new_text)
             self._refresh_vocab_list()
-            # Re-select the new word
-            for i in range(self.vocab_list.count()):
-                if self.vocab_list.item(i).text() == new_text:
-                    self.vocab_list.setCurrentRow(i)
-                    break
+            self._select_vocab_word(new_text)
         self._refresh_stats()
         self.save_session()
+
+    def _select_vocab_word(self, word: str) -> bool:
+        for i in range(self.vocab_list.count()):
+            item = self.vocab_list.item(i)
+            if item.text() == word:
+                self.vocab_list.setCurrentRow(i)
+                self.vocab_list.scrollToItem(item)
+                return True
+        return False
 
     def _refresh_vocab_list(self) -> None:
         self.vocab_list.blockSignals(True)

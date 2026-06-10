@@ -13,6 +13,7 @@
 ### 阅读模式
 
 - 自动拆分文章和题目：粘贴阅读材料后，根据题号、`Questions ...`、`Question 1`、中文提示等标志尝试拆分阅读区和题目区。
+- 试卷 PDF 导入：导入文本型四级真题 PDF 后，可从篇章列表中选择选词填空、长篇阅读、第一篇短篇阅读或第二篇短篇阅读。
 - 单词查词：点击文章或题目中的英文单词即可查询释义。
 - 生词本：双击单词加入生词，也可以在右侧手动输入；导出到 `vocab/vocab.txt`，并保留历史快照。
 - 搜索与高亮：支持 `Ctrl+F` 搜索；选中文本后右键添加或取消高亮。
@@ -50,6 +51,7 @@
 | 应用语言 | Python |
 | 桌面界面 | PyQt6 |
 | OCR | PaddleOCR |
+| PDF 解析 | pypdf |
 | 听力转写 | faster-whisper |
 | 本地数据 | CSV, SQLite |
 | 测试 | unittest |
@@ -63,6 +65,7 @@ cet4-reader-assistant/
 │  ├─ ui.py                # PyQt6 主界面、阅读/听力交互
 │  ├─ core.py              # 文本处理、生词导出、历史合并
 │  ├─ dictionary.py        # 本地/在线词典、词形还原
+│  ├─ exam_paper.py        # 四级试卷 PDF 解析与阅读篇章切分
 │  ├─ ocr_service.py       # PaddleOCR 服务与 OCR 结果整理
 │  └─ listening.py         # Whisper 转写、听力文章切分、GPU 回退
 ├─ scripts/
@@ -125,7 +128,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 ### 阅读模式
 
 1. 启动应用后进入阅读模式。
-2. 将英文阅读材料粘贴到文章区，程序会尝试自动拆分文章和题目。
+2. 将英文阅读材料粘贴到文章区，程序会尝试自动拆分文章和题目；也可以点击 `导入试卷 PDF` 后从篇章列表选择要练习的阅读篇章。
 3. 点击单词查看释义，双击单词加入生词。
 4. 使用 `Ctrl+F` 搜索，或选中文本后右键高亮。
 5. 点击 `导出 vocab.txt` 导出生词；历史词表会写入 `vocab/history/`。

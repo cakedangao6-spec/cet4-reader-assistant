@@ -6,6 +6,8 @@ import logging
 import re
 import sqlite3
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -15,6 +17,9 @@ from urllib.request import Request, urlopen
 from .core import normalize_word
 
 logger = logging.getLogger(__name__)
+
+ONLINE_LOOKUP_TIMEOUT_SECONDS = 2.5
+YOUDAO_LOOKUP_TIMEOUT_SECONDS = 1.2
 
 
 class Lemmatizer:
@@ -109,6 +114,21 @@ class DictionaryEntry:
     translation: str
     pos: str
     source: str
+
+
+OnlineProvider = Callable[[str], DictionaryEntry | None]
+
+POS_LABELS = {
+    "noun": "n",
+    "verb": "v",
+    "adjective": "adj",
+    "adverb": "adv",
+    "pronoun": "pron",
+    "preposition": "prep",
+    "conjunction": "conj",
+    "interjection": "int",
+    "determiner": "det",
+}
 
 
 class DictionaryService:
@@ -246,8 +266,11 @@ class DictionaryService:
         return None
 
     def _try_providers(self, word: str) -> DictionaryEntry | None:
-        """Run word through all online providers, returning first match."""
-        for provider in (self._lookup_youdao, self._lookup_mymemory, self._lookup_freedict):
+        """Run online providers, returning the first valid match."""
+        entry = self._try_parallel_providers(word, self._primary_online_providers())
+        if entry is not None:
+            return entry
+        for provider in self._fallback_online_providers():
             try:
                 entry = provider(word)
             except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
@@ -259,6 +282,54 @@ class DictionaryService:
             if entry is not None:
                 return entry
         return None
+
+    def _primary_online_providers(self) -> tuple[OnlineProvider, ...]:
+        """Primary lookup providers race each other to avoid VPN-related waiting."""
+        return (
+            self._lookup_youdao,
+            self._lookup_freedict,
+        )
+
+    def _fallback_online_providers(self) -> tuple[OnlineProvider, ...]:
+        """Translation-style online fallback, tried only after primary providers fail."""
+        return (
+            self._lookup_mymemory,
+        )
+
+    def _try_parallel_providers(
+        self,
+        word: str,
+        providers: tuple[OnlineProvider, ...],
+    ) -> DictionaryEntry | None:
+        if not providers:
+            return None
+        executor = ThreadPoolExecutor(max_workers=len(providers), thread_name_prefix="dict-lookup")
+        try:
+            futures = {executor.submit(provider, word): provider for provider in providers}
+            for future in as_completed(futures):
+                provider = futures[future]
+                try:
+                    entry = future.result()
+                except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+                    logger.exception(
+                        "Online dictionary provider failed for word=%s provider=%s",
+                        word,
+                        provider.__name__,
+                    )
+                    continue
+                except Exception:
+                    logger.exception(
+                        "Unexpected online lookup failure for word=%s provider=%s",
+                        word,
+                        provider.__name__,
+                    )
+                    continue
+                if entry is not None:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    return entry
+            return None
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
     @staticmethod
     def _simple_online_fallbacks(word: str) -> list[str]:
@@ -430,7 +501,10 @@ class DictionaryService:
         return dict(row) if row is not None else None
 
     def _lookup_youdao(self, word: str) -> DictionaryEntry | None:
-        payload = self._read_json(f"https://dict.youdao.com/jsonapi?jsonversion=2&q={quote(word)}")
+        payload = self._read_json(
+            f"https://dict.youdao.com/jsonapi?jsonversion=2&q={quote(word)}",
+            timeout=YOUDAO_LOOKUP_TIMEOUT_SECONDS,
+        )
         ec = payload.get("ec")
         if not isinstance(ec, dict):
             return None
@@ -468,7 +542,7 @@ class DictionaryService:
             phonetic=phonetic,
             translation="\n".join(translations),
             pos=pos,
-            source="在线词典",
+            source="Youdao",
         )
 
     def _lookup_mymemory(self, word: str) -> DictionaryEntry | None:
@@ -487,7 +561,7 @@ class DictionaryService:
             phonetic="",
             translation=translated,
             pos="",
-            source="在线词典",
+            source="MyMemory",
         )
 
     def _lookup_freedict(self, word: str) -> DictionaryEntry | None:
@@ -504,39 +578,83 @@ class DictionaryService:
         word_str = str(raw_entry.get("word") or word)
         phonetic = str(raw_entry.get("phonetic") or "").strip()
 
-        translations: list[str] = []
+        senses: list[tuple[str, str]] = []
         pos_list: list[str] = []
         for meaning in raw_entry.get("meanings", []):
             if not isinstance(meaning, dict):
                 continue
-            part_of_speech = meaning.get("partOfSpeech", "")
-            if part_of_speech:
-                label = str(part_of_speech).strip()
-                if label and label not in pos_list:
-                    pos_list.append(label)
+            pos_label = self._short_pos_label(meaning.get("partOfSpeech", ""))
+            if pos_label and pos_label not in pos_list:
+                pos_list.append(pos_label)
             for definition in meaning.get("definitions", []):
                 if not isinstance(definition, dict):
                     continue
                 def_text = str(definition.get("definition") or "").strip()
-                if def_text:
-                    translations.append(f"{part_of_speech}. {def_text}")
-        if not translations:
+                if def_text and pos_label and not any(pos_label == pos for pos, _ in senses):
+                    senses.append((pos_label, def_text))
+                    break
+        if not senses:
             return None
+        translation, source = self._format_freedict_translation(senses[:4])
 
         return DictionaryEntry(
-            word=word,
-            headword=word,
+            word=word_str,
+            headword=word_str,
             phonetic=phonetic,
-            translation="\n".join(translations[:5]),
+            translation=translation,
             pos=" / ".join(pos_list),
-            source="在线词典",
+            source=source,
         )
 
+    def _format_freedict_translation(self, senses: list[tuple[str, str]]) -> tuple[str, str]:
+        lines: list[str] = []
+        translated_any = False
+        for pos_label, definition in senses:
+            translated = self._translate_freedict_definition(definition)
+            if translated:
+                translated_any = True
+                lines.append(f"{pos_label}. {self._shorten_definition(translated, 48)}")
+            else:
+                lines.append(f"{pos_label}. {self._shorten_definition(definition, 90)}")
+        source = "Free Dictionary + MyMemory" if translated_any else "Free Dictionary"
+        return "\n".join(lines), source
+
+    def _translate_freedict_definition(self, text: str) -> str | None:
+        try:
+            payload = self._read_json(
+                f"https://api.mymemory.translated.net/get?q={quote(text)}&langpair=en|zh-CN"
+            )
+        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+            logger.exception("Free Dictionary definition translation failed for text=%r", text[:60])
+            return None
+        response = payload.get("responseData") if isinstance(payload, dict) else None
+        if not isinstance(response, dict):
+            return None
+        translated = str(response.get("translatedText") or "").strip()
+        if not translated or translated.lower() == text.lower():
+            return None
+        return translated
+
     @staticmethod
-    def _read_json(url: str) -> dict[str, object] | list[object]:
+    def _short_pos_label(raw_pos: object) -> str:
+        label = str(raw_pos or "").strip().lower()
+        return POS_LABELS.get(label, label)
+
+    @staticmethod
+    def _shorten_definition(text: str, max_length: int) -> str:
+        cleaned = re.sub(r"\s+", " ", text).strip(" ;,，；。")
+        if len(cleaned) <= max_length:
+            return cleaned
+        return cleaned[:max_length].rstrip(" ;,，；。") + "..."
+
+    @staticmethod
+    def _read_json(
+        url: str,
+        timeout: float = ONLINE_LOOKUP_TIMEOUT_SECONDS,
+    ) -> dict[str, object] | list[object]:
         """Fetch and parse a JSON response. Returns dict or list."""
         request = Request(url, headers={"User-Agent": "CET4ReaderAssistant/1.0"})
-        with urlopen(request, timeout=4) as response:
+        with urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
         if not isinstance(payload, (dict, list)):
             raise ValueError("Dictionary response must be a JSON object or array.")
