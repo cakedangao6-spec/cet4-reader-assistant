@@ -11,7 +11,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6.QtCore import QMimeData, Qt
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QToolBar, QToolButton
+from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QPushButton, QToolBar, QToolButton
 from PyQt6.QtGui import QTextCursor
 
 from cet4_reader.exam_paper import ExamPaperParseError, ExamPaperPassage
@@ -276,6 +276,16 @@ class PasteArticleFlowTests(unittest.TestCase):
             window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
             labels = [action.text() for toolbar in window.findChildren(QToolBar) for action in toolbar.actions()]
             self.assertIn("导入试卷 PDF", labels)
+            window.close()
+
+    def test_sidebar_has_ai_tutor_controls(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            buttons = [button.text() for button in window.findChildren(QPushButton)]
+
+            self.assertIn("问 AI", buttons)
+            self.assertIn("清空讲解", buttons)
+            self.assertEqual(window.ai_question_input.placeholderText(), "问：这题为什么选 B？或 这句话怎么理解？")
             window.close()
 
     def test_exam_passage_combo_loads_selected_passage(self) -> None:

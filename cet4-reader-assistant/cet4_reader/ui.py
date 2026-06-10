@@ -56,6 +56,7 @@ from .core import (
     write_vocab_file,
 )
 from .app_icon import load_app_icon
+from .ai_tutor import AITutorContext, ask_ollama
 from .dictionary import DictionaryEntry, DictionaryService
 from .exam_paper import ExamPaperParseError, ExamPaperPassage, parse_exam_pdf
 from .listening import (
@@ -125,6 +126,26 @@ class TranslateWorker(QRunnable):
             self.signals.finished.emit(self.text, result or "")
         except Exception as exc:
             self.signals.failed.emit(self.text, str(exc))
+
+
+class AITutorSignals(QObject):
+    finished = pyqtSignal(str)
+    failed = pyqtSignal(str)
+
+
+class AITutorWorker(QRunnable):
+    def __init__(self, question: str, context: AITutorContext) -> None:
+        super().__init__()
+        self.question = question
+        self.context = context
+        self.signals = AITutorSignals()
+
+    def run(self) -> None:
+        try:
+            self.signals.finished.emit(ask_ollama(self.question, self.context))
+        except Exception as exc:
+            logger.exception("AI tutor request failed")
+            self.signals.failed.emit(str(exc))
 
 
 class ListeningAnalysisSignals(QObject):
@@ -743,6 +764,7 @@ class MainWindow(QMainWindow):
         self.mode = "reading"
         self.saved_audio_path: Path | None = None
         self.exam_passages: list[ExamPaperPassage] = []
+        self._ai_tutor_running = False
 
         self.setWindowTitle("CET-4 阅读助手")
         icon = load_app_icon(self.base_dir)
@@ -993,6 +1015,30 @@ class MainWindow(QMainWindow):
         self.detail_view.setOpenExternalLinks(False)
         self.detail_view.setMinimumHeight(190)
         sidebar_layout.addWidget(self.detail_view)
+
+        ai_header = QLabel("AI 讲题")
+        sidebar_layout.addWidget(ai_header)
+
+        self.ai_answer_view = QTextBrowser()
+        self.ai_answer_view.setOpenExternalLinks(False)
+        self.ai_answer_view.setMinimumHeight(150)
+        self.ai_answer_view.setPlaceholderText("这里显示本地 Ollama 的讲题结果。")
+        sidebar_layout.addWidget(self.ai_answer_view)
+
+        self.ai_question_input = QTextEdit(self)
+        self.ai_question_input.setAcceptRichText(False)
+        self.ai_question_input.setMaximumHeight(78)
+        self.ai_question_input.setPlaceholderText("问：这题为什么选 B？或 这句话怎么理解？")
+        sidebar_layout.addWidget(self.ai_question_input)
+
+        ai_row = QHBoxLayout()
+        self.ai_send_button = QPushButton("问 AI", self)
+        self.ai_send_button.clicked.connect(self.ask_ai_tutor)
+        ai_row.addWidget(self.ai_send_button)
+        self.ai_clear_button = QPushButton("清空讲解", self)
+        self.ai_clear_button.clicked.connect(self.ai_answer_view.clear)
+        ai_row.addWidget(self.ai_clear_button)
+        sidebar_layout.addLayout(ai_row)
 
         root.addWidget(sidebar)
         root.setSizes([820, 360])
@@ -1724,3 +1770,48 @@ class MainWindow(QMainWindow):
             f"<p><b>原文</b><br>{html.escape(original)}</p>"
             f"<p><b>错误</b> {html.escape(message)}</p>"
         )
+
+    # ── Local AI tutor ─────────────────────────────────────────────────
+
+    def ask_ai_tutor(self) -> None:
+        if self._ai_tutor_running:
+            return
+        question = self.ai_question_input.toPlainText().strip()
+        context = self._build_ai_tutor_context()
+        if not question and not context.selected_text and not context.question_text.strip():
+            self.statusBar().showMessage("请先输入问题，或在题目区选中一道题。", 3000)
+            return
+
+        self._ai_tutor_running = True
+        self.ai_send_button.setEnabled(False)
+        self.ai_answer_view.setPlainText("AI 正在讲题，请稍等...")
+        worker = AITutorWorker(question, context)
+        worker.signals.finished.connect(self._on_ai_tutor_finished)
+        worker.signals.failed.connect(self._on_ai_tutor_failed)
+        self.thread_pool.start(worker)
+
+    def _build_ai_tutor_context(self) -> AITutorContext:
+        question_text = self.question_view.toPlainText()
+        if self.mode == "listening":
+            question_text = self.listening_question_view.toPlainText()
+        return AITutorContext(
+            article_text=self.article_view.toPlainText(),
+            question_text=question_text,
+            selected_text=self._current_selected_text(),
+        )
+
+    def _on_ai_tutor_finished(self, answer: str) -> None:
+        self._ai_tutor_running = False
+        self.ai_send_button.setEnabled(True)
+        self.ai_answer_view.setPlainText(answer)
+        self.statusBar().showMessage("AI 讲题完成。", 3000)
+
+    def _on_ai_tutor_failed(self, message: str) -> None:
+        self._ai_tutor_running = False
+        self.ai_send_button.setEnabled(True)
+        self.ai_answer_view.setPlainText(
+            "AI 讲题失败。\n\n"
+            f"{message}\n\n"
+            "请确认 Ollama 已启动，并且模型 qwen3:8b 可以正常运行。"
+        )
+        self.statusBar().showMessage("AI 讲题失败。", 3000)
