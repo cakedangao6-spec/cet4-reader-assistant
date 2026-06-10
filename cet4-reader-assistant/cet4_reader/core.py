@@ -27,6 +27,8 @@ QUESTION_NUMBER_RE = re.compile(r"^\s*\d{1,3}[\.\)]?\s*$")
 QUESTION_LINE_RE = re.compile(r"^\s*\d{1,3}[\.\)]\s+.+\?\s*$")
 SECTION_END_RE = re.compile(r"^\s*(?:part\s+[ivx]+|translation)\b.*$", re.IGNORECASE)
 SPACE_RE = re.compile(r"\s+")
+TERMINAL_PUNCT_RE = re.compile(r"[.!?。！？][\"')\]]*$")
+LOWERCASE_START_RE = re.compile(r"^[a-z]")
 
 
 @dataclass(frozen=True)
@@ -101,7 +103,34 @@ def clean_ocr_text(text: str) -> str:
     while cleaned_lines and cleaned_lines[-1] == "":
         cleaned_lines.pop()
 
-    return "\n".join(cleaned_lines).strip()
+    return "\n".join(join_ocr_wrapped_lines(cleaned_lines)).strip()
+
+
+def join_ocr_wrapped_lines(lines: Iterable[str]) -> list[str]:
+    joined: list[str] = []
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            if joined and joined[-1] != "":
+                joined.append("")
+            continue
+
+        if joined and joined[-1] and _should_join_ocr_line(joined[-1], line):
+            joined[-1] = f"{joined[-1].rstrip()} {line}"
+        else:
+            joined.append(line)
+
+    while joined and joined[-1] == "":
+        joined.pop()
+    return joined
+
+
+def _should_join_ocr_line(previous: str, current: str) -> bool:
+    if OPTION_RE.match(current) or QUESTION_LINE_RE.match(current):
+        return False
+    if LOWERCASE_START_RE.match(current):
+        return True
+    return TERMINAL_PUNCT_RE.search(previous) is None
 
 
 def decode_text_bytes(raw: bytes) -> str:

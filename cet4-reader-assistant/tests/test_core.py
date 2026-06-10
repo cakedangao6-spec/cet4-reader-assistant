@@ -43,6 +43,33 @@ class CoreTests(unittest.TestCase):
         """
         self.assertEqual(clean_ocr_text(raw), "Reading is useful.\nIt also builds confidence.")
 
+    def test_clean_ocr_text_joins_wrapped_article_lines(self) -> None:
+        raw = """
+        Passage Two
+        Chocolates save us from many things, especially emotional distress. They comfort us in times of trouble,
+        calming down
+        a racing heart by channeling happy calories inside us. We all have faith in chocolates to delight us in an
+        instant!
+        Recently, chocolate lovers were heartbroken as scientists claimed that they can become extinct by 2050! But
+        hey, we
+        have some happy news for you. Chocolate
+        trees, whose seeds
+        are used to make chocolate, grow in the tropical plant world.
+        51. What do people believe chocolates can do?
+        A) Cheer them up instantly.
+        """
+        self.assertEqual(
+            clean_ocr_text(raw),
+            (
+                "Chocolates save us from many things, especially emotional distress. "
+                "They comfort us in times of trouble, calming down a racing heart by channeling "
+                "happy calories inside us. We all have faith in chocolates to delight us in an instant!\n"
+                "Recently, chocolate lovers were heartbroken as scientists claimed that they can become "
+                "extinct by 2050! But hey, we have some happy news for you. Chocolate trees, whose seeds "
+                "are used to make chocolate, grow in the tropical plant world."
+            ),
+        )
+
     def test_sort_vocab(self) -> None:
         self.assertEqual(sort_vocab(["pear", "apple", "pear"]), ["apple", "pear"])
 
