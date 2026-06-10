@@ -29,6 +29,9 @@ QUESTION_RANGE_RE = re.compile(
     r"^\s*Questions?\s+\d{1,3}\s*(?:[-\u2013\u2014]|to|and)\s*\d{1,3}.*$",
     re.IGNORECASE | re.MULTILINE,
 )
+QUESTION_START_RE = re.compile(r"^\s*\d{1,3}[\.\)]\s*")
+OPTION_START_RE = re.compile(r"^\s*[A-D][\.\)]\s*")
+INLINE_OPTION_RE = re.compile(r"\s+([A-D][\.\)])\s*")
 SPACE_RE = re.compile(r"[ \t]+")
 
 
@@ -83,7 +86,7 @@ def parse_exam_text(text: str) -> list[ExamPaperPassage]:
                 section="Section A",
                 question_range="26-35",
                 article_text=article or section_a,
-                question_text=questions,
+                question_text=_format_question_text(questions),
             )
         )
 
@@ -96,7 +99,7 @@ def parse_exam_text(text: str) -> list[ExamPaperPassage]:
                 section="Section B",
                 question_range="36-45",
                 article_text=article or section_b,
-                question_text=questions,
+                question_text=_format_question_text(questions),
             )
         )
 
@@ -160,14 +163,14 @@ def _split_section_c(section_text: str) -> list[ExamPaperPassage]:
             section="Section C",
             question_range="46-50",
             article_text=first_article,
-            question_text=first_questions,
+            question_text=_format_question_text(first_questions),
         ),
         ExamPaperPassage(
             title="第二篇短篇阅读 51-55",
             section="Section C",
             question_range="51-55",
             article_text=second_article,
-            question_text=second_questions,
+            question_text=_format_question_text(second_questions),
         ),
     ]
 
@@ -183,3 +186,32 @@ def _split_at_question(text: str, first_question: int) -> tuple[str, str]:
     if match is None:
         return text.strip(), ""
     return text[: match.start()].strip(), text[match.start() :].strip()
+
+
+def _format_question_text(text: str) -> str:
+    if not text.strip():
+        return ""
+
+    expanded_lines: list[str] = []
+    for raw_line in text.splitlines():
+        line = SPACE_RE.sub(" ", raw_line).strip()
+        if not line:
+            continue
+        line = INLINE_OPTION_RE.sub(r"\n\1 ", line)
+        for part in line.splitlines():
+            part = SPACE_RE.sub(" ", part).strip()
+            if not part:
+                continue
+            part = QUESTION_START_RE.sub(lambda match: f"{match.group(0).strip()} ", part, count=1)
+            part = OPTION_START_RE.sub(lambda match: f"{match.group(0).strip()} ", part, count=1)
+            expanded_lines.append(part)
+
+    formatted: list[str] = []
+    for line in expanded_lines:
+        if QUESTION_START_RE.match(line) and formatted and formatted[-1] != "":
+            formatted.append("")
+        formatted.append(line)
+
+    while formatted and formatted[-1] == "":
+        formatted.pop()
+    return "\n".join(formatted)

@@ -25,8 +25,7 @@ Questions 46 to 50 are based on the following passage.
 New research suggests that pandas may be at risk of dying out.
 Their chances of finding new mates have a lot to do with their habitat.
 46. What do experts say about pandas?
-A) They need new mates.
-B) They should live alone.
+A) They need new mates. B) They should live alone.
 47. What does the passage imply?
 A) Habitat matters.
 B) Food is enough.
@@ -65,6 +64,8 @@ class ExamPaperTests(unittest.TestCase):
         self.assertNotIn("46.", first_short.article_text)
         self.assertIn("46. What do experts say", first_short.question_text)
         self.assertNotIn("Passage Two", first_short.question_text)
+        self.assertIn("A) They need new mates.\nB) They should live alone.", first_short.question_text)
+        self.assertIn("B) They should live alone.\n\n47. What", first_short.question_text)
 
     def test_parse_exam_text_extracts_second_short_reading(self) -> None:
         second_short = parse_exam_text(SAMPLE_PAPER)[3]
