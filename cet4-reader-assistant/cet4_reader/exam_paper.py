@@ -34,9 +34,16 @@ OPTION_START_RE = re.compile(r"^\s*[A-D][\.\)]\s*")
 INLINE_OPTION_RE = re.compile(r"\s+([A-D][\.\)])\s*")
 SPACE_RE = re.compile(r"[ \t]+")
 APOSTROPHE_SPACE_RE = re.compile(r"\s+([’'])\s*")
+PUNCTUATION_SPACE_RE = re.compile(r"\s+([,.;:!?])")
+QUOTE_SPACE_RE = re.compile(r"\s+([”’])")
+NEGATIVE_CONTRACTION_RE = re.compile(r"\b([A-Za-z]+)\s+n[’']t\b")
+EM_DASH_WORD_RE = re.compile(r"([—–])(?=[A-Za-z])")
 SPLIT_WORD_SUFFIX_RE = re.compile(
     r"\b([A-Za-z]{3,})\s+(s|es|ed|er|ers|ing|ingly|ure|uring|ion|ions|al|ally|ive|ives|ment|ments|ity|ities)\b"
 )
+COMMON_SPLIT_WORDS = {
+    "ta sk": "task",
+}
 PARAGRAPH_START_RE = re.compile(
     r"^(?:I\s+am\b|One\s+\w+\b|A\s+\w+\b|An\s+\w+\b|Women\b|Men\b|But\b|However\b)",
     re.IGNORECASE,
@@ -144,7 +151,13 @@ def _normalize_text(text: str) -> str:
 def _clean_pdf_line(line: str) -> str:
     cleaned = SPACE_RE.sub(" ", line).strip()
     cleaned = APOSTROPHE_SPACE_RE.sub(r"\1", cleaned)
+    cleaned = PUNCTUATION_SPACE_RE.sub(r"\1", cleaned)
+    cleaned = QUOTE_SPACE_RE.sub(r"\1", cleaned)
+    cleaned = NEGATIVE_CONTRACTION_RE.sub(r"\1n’t", cleaned)
+    cleaned = EM_DASH_WORD_RE.sub(r"\1 ", cleaned)
     cleaned = SPLIT_WORD_SUFFIX_RE.sub(r"\1\2", cleaned)
+    for broken, fixed in COMMON_SPLIT_WORDS.items():
+        cleaned = re.sub(rf"\b{re.escape(broken)}\b", fixed, cleaned, flags=re.IGNORECASE)
     return cleaned
 
 

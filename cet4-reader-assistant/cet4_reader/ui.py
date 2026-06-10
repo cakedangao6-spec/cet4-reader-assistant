@@ -57,7 +57,7 @@ from .core import (
     write_vocab_file,
 )
 from .app_icon import load_app_icon
-from .ai_tutor import AITutorContext, ask_ollama
+from .ai_tutor import AITutorContext, format_article_paragraphs_with_ollama, stream_ollama
 from .dictionary import DictionaryEntry, DictionaryService
 from .exam_paper import ExamPaperParseError, ExamPaperPassage, parse_exam_pdf
 from .listening import (
@@ -131,6 +131,7 @@ class TranslateWorker(QRunnable):
 
 class AITutorSignals(QObject):
     finished = pyqtSignal(str)
+    chunk = pyqtSignal(str)
     failed = pyqtSignal(str)
 
 
@@ -143,9 +144,64 @@ class AITutorWorker(QRunnable):
 
     def run(self) -> None:
         try:
-            self.signals.finished.emit(ask_ollama(self.question, self.context))
+            self.signals.finished.emit(
+                stream_ollama(
+                    self.question,
+                    self.context,
+                    on_chunk=self.signals.chunk.emit,
+                )
+            )
         except Exception as exc:
             logger.exception("AI tutor request failed")
+            self.signals.failed.emit(str(exc))
+
+
+class ArticleFormatSignals(QObject):
+    finished = pyqtSignal(str)
+    failed = pyqtSignal(str)
+
+
+class ArticleFormatWorker(QRunnable):
+    def __init__(self, article_text: str) -> None:
+        super().__init__()
+        self.article_text = article_text
+        self.signals = ArticleFormatSignals()
+
+    def run(self) -> None:
+        try:
+            self.signals.finished.emit(format_article_paragraphs_with_ollama(self.article_text))
+        except Exception as exc:
+            logger.exception("AI article formatting failed")
+            self.signals.failed.emit(str(exc))
+
+
+class ExamPassageFormatSignals(QObject):
+    finished = pyqtSignal(object)
+    failed = pyqtSignal(str)
+
+
+class ExamPassageFormatWorker(QRunnable):
+    def __init__(self, passages: list[ExamPaperPassage]) -> None:
+        super().__init__()
+        self.passages = list(passages)
+        self.signals = ExamPassageFormatSignals()
+
+    def run(self) -> None:
+        try:
+            formatted = [
+                ExamPaperPassage(
+                    title=passage.title,
+                    section=passage.section,
+                    question_range=passage.question_range,
+                    article_text=format_article_paragraphs_with_ollama(passage.article_text),
+                    question_text=passage.question_text,
+                    source_path=passage.source_path,
+                )
+                for passage in self.passages
+            ]
+            self.signals.finished.emit(formatted)
+        except Exception as exc:
+            logger.exception("AI exam passage formatting failed")
             self.signals.failed.emit(str(exc))
 
 
@@ -766,6 +822,19 @@ class MainWindow(QMainWindow):
         self.saved_audio_path: Path | None = None
         self.exam_passages: list[ExamPaperPassage] = []
         self._ai_tutor_running = False
+        self._article_format_running = False
+        self._exam_format_running = False
+        self._ai_stream_started = False
+        self._ai_stream_buffer = ""
+        self._ai_progress_index = 0
+        self._ai_progress_lines = [
+            "正在读取题目和选项...",
+            "正在回到原文定位依据...",
+            "正在比较干扰选项...",
+            "正在组织讲解步骤...",
+        ]
+        self._ai_progress_timer = QTimer(self)
+        self._ai_progress_timer.timeout.connect(self._append_ai_progress_line)
 
         self.setWindowTitle("CET-4 阅读助手")
         icon = load_app_icon(self.base_dir)
@@ -824,6 +893,10 @@ class MainWindow(QMainWindow):
         self.import_exam_action = QAction("导入试卷 PDF", self)
         self.import_exam_action.triggered.connect(self.import_exam_pdf)
         toolbar.addAction(self.import_exam_action)
+
+        self.ai_format_action = QAction("AI优化分段", self)
+        self.ai_format_action.triggered.connect(self.optimize_current_article_paragraphs)
+        toolbar.addAction(self.ai_format_action)
 
         self.reset_action = QAction("一键清空 / 重新开始", self)
         self.reset_action.triggered.connect(self.reset_session)
@@ -1139,6 +1212,7 @@ class MainWindow(QMainWindow):
 
         self.switch_mode("reading")
         self.set_exam_passages(passages)
+        self._start_exam_passage_formatting(passages)
 
     def set_exam_passages(self, passages: list[ExamPaperPassage]) -> None:
         self.exam_passages = list(passages)
@@ -1171,6 +1245,76 @@ class MainWindow(QMainWindow):
         self._search_index = -1
         self.statusBar().showMessage(f"已载入：{passage.title}", 3000)
         self.save_session()
+
+    def _start_exam_passage_formatting(self, passages: list[ExamPaperPassage]) -> None:
+        if self._exam_format_running or not passages:
+            return
+        self._exam_format_running = True
+        self.statusBar().showMessage("正在用本地 AI 优化试卷篇章分段...", 0)
+        worker = ExamPassageFormatWorker(passages)
+        worker.signals.finished.connect(self._on_exam_passage_format_finished)
+        worker.signals.failed.connect(self._on_exam_passage_format_failed)
+        self.thread_pool.start(worker)
+
+    def _on_exam_passage_format_finished(self, passages: object) -> None:
+        self._exam_format_running = False
+        if not isinstance(passages, list) or not all(isinstance(item, ExamPaperPassage) for item in passages):
+            self.statusBar().showMessage("AI 分段结果无效，已保留规则版排版。", 4000)
+            return
+
+        selected_data = self.exam_passage_combo.currentData()
+        self.exam_passages = list(passages)
+        if isinstance(selected_data, int) and 0 <= selected_data < len(self.exam_passages):
+            passage = self.exam_passages[selected_data]
+            self.article_view.setPlainText(passage.article_text)
+        self.statusBar().showMessage("本地 AI 已优化试卷篇章分段。", 4000)
+        self.save_session()
+
+    def _on_exam_passage_format_failed(self, message: str) -> None:
+        self._exam_format_running = False
+        self.statusBar().showMessage(f"AI 分段失败，已保留规则版：{message}", 6000)
+
+    def optimize_current_article_paragraphs(self) -> None:
+        if self._article_format_running:
+            return
+        article_text = self.article_view.toPlainText().strip()
+        if not article_text:
+            self.statusBar().showMessage("文章区没有内容，无法优化分段。", 3000)
+            return
+
+        self._article_format_running = True
+        self.ai_format_action.setEnabled(False)
+        self.statusBar().showMessage("正在用本地 AI 优化当前文章分段...", 0)
+        worker = ArticleFormatWorker(article_text)
+        worker.signals.finished.connect(self._on_article_format_finished)
+        worker.signals.failed.connect(self._on_article_format_failed)
+        self.thread_pool.start(worker)
+
+    def _on_article_format_finished(self, text: str) -> None:
+        self._article_format_running = False
+        self.ai_format_action.setEnabled(True)
+        if not text.strip():
+            self.statusBar().showMessage("AI 分段结果为空，已保留原文。", 4000)
+            return
+        self.article_view.setPlainText(text.strip())
+        data = self.exam_passage_combo.currentData()
+        if isinstance(data, int) and 0 <= data < len(self.exam_passages):
+            passage = self.exam_passages[data]
+            self.exam_passages[data] = ExamPaperPassage(
+                title=passage.title,
+                section=passage.section,
+                question_range=passage.question_range,
+                article_text=text.strip(),
+                question_text=passage.question_text,
+                source_path=passage.source_path,
+            )
+        self.statusBar().showMessage("当前文章分段已优化。", 3000)
+        self.save_session()
+
+    def _on_article_format_failed(self, message: str) -> None:
+        self._article_format_running = False
+        self.ai_format_action.setEnabled(True)
+        self.statusBar().showMessage(f"AI 分段失败：{message}", 6000)
 
     def _handle_article_paste(self, text: str) -> None:
         article_text, question_text = self._split_article_questions(text)
@@ -1792,9 +1936,14 @@ class MainWindow(QMainWindow):
             return
 
         self._ai_tutor_running = True
+        self._ai_stream_started = False
+        self._ai_stream_buffer = ""
+        self._ai_progress_index = 0
         self.ai_send_button.setEnabled(False)
-        self.ai_answer_view.setPlainText("AI 正在讲题，请稍等...")
+        self.ai_answer_view.setPlainText("AI 正在讲题，请稍等...\n")
+        self._ai_progress_timer.start(650)
         worker = AITutorWorker(question, context)
+        worker.signals.chunk.connect(self._on_ai_tutor_chunk)
         worker.signals.finished.connect(self._on_ai_tutor_finished)
         worker.signals.failed.connect(self._on_ai_tutor_failed)
         self.thread_pool.start(worker)
@@ -1811,12 +1960,15 @@ class MainWindow(QMainWindow):
 
     def _on_ai_tutor_finished(self, answer: str) -> None:
         self._ai_tutor_running = False
+        self._ai_progress_timer.stop()
         self.ai_send_button.setEnabled(True)
-        self.ai_answer_view.setPlainText(answer)
+        if not self._ai_stream_started:
+            self.ai_answer_view.setPlainText(answer)
         self.statusBar().showMessage("AI 讲题完成。", 3000)
 
     def _on_ai_tutor_failed(self, message: str) -> None:
         self._ai_tutor_running = False
+        self._ai_progress_timer.stop()
         self.ai_send_button.setEnabled(True)
         self.ai_answer_view.setPlainText(
             "AI 讲题失败。\n\n"
@@ -1824,3 +1976,28 @@ class MainWindow(QMainWindow):
             "请确认 Ollama 已启动，并且模型 qwen3:8b 可以正常运行。"
         )
         self.statusBar().showMessage("AI 讲题失败。", 3000)
+
+    def _on_ai_tutor_chunk(self, chunk: str) -> None:
+        if not chunk:
+            return
+        if not self._ai_stream_started:
+            self._ai_stream_started = True
+            self._ai_progress_timer.stop()
+            self.ai_answer_view.setPlainText("")
+        self._ai_stream_buffer += chunk
+        self._append_ai_answer_text(chunk)
+
+    def _append_ai_progress_line(self) -> None:
+        if self._ai_stream_started or not self._ai_tutor_running:
+            self._ai_progress_timer.stop()
+            return
+        line = self._ai_progress_lines[self._ai_progress_index % len(self._ai_progress_lines)]
+        self._ai_progress_index += 1
+        self._append_ai_answer_text(f"{line}\n")
+
+    def _append_ai_answer_text(self, text: str) -> None:
+        cursor = self.ai_answer_view.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertText(text)
+        self.ai_answer_view.setTextCursor(cursor)
+        self.ai_answer_view.ensureCursorVisible()

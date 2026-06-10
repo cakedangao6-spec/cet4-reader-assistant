@@ -276,6 +276,7 @@ class PasteArticleFlowTests(unittest.TestCase):
             window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
             labels = [action.text() for toolbar in window.findChildren(QToolBar) for action in toolbar.actions()]
             self.assertIn("导入试卷 PDF", labels)
+            self.assertIn("AI优化分段", labels)
             window.close()
 
     def test_sidebar_has_ai_tutor_controls(self) -> None:
