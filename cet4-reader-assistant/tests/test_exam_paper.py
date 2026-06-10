@@ -31,8 +31,9 @@ A) Habitat matters.
 B) Food is enough.
 Passage Two
 Questions 51 to 55 are based on the following passage.
-Engineering in the U.S. has long been a male-dominated profession.
-Many women engineers reflected on the challenges they faced.
+Engineering in the U.S. has long been a male-dominated profession. 
+Many women engineers reflected on the challenges they faced.  
+One survey taker explained her challenge.
 51. What does the passage mainly discuss?
 A) Women in engineering.
 B) New machines.
@@ -71,7 +72,8 @@ class ExamPaperTests(unittest.TestCase):
         second_short = parse_exam_text(SAMPLE_PAPER)[3]
 
         self.assertEqual(second_short.question_range, "51-55")
-        self.assertIn("male-dominated profession", second_short.article_text)
+        self.assertIn("male-dominated profession. Many women", second_short.article_text)
+        self.assertIn("challenges they faced.\n\nOne survey taker", second_short.article_text)
         self.assertNotIn("51.", second_short.article_text)
         self.assertIn("51. What does the passage", second_short.question_text)
 

@@ -36,7 +36,8 @@ class AITutorTests(unittest.TestCase):
         self.assertIn("51. What can chocolate do?", prompt)
         self.assertIn("用户当前选中的内容", prompt)
         self.assertIn("为什么选 B？", prompt)
-        self.assertIn("不要输出思考过程", prompt)
+        self.assertIn("思考过程", prompt)
+        self.assertIn("不要输出 <think> 标签", prompt)
 
     def test_strip_thinking_removes_qwen_think_block(self) -> None:
         self.assertEqual(strip_thinking("<think>hidden</think>\n定位：原文第二句。"), "定位：原文第二句。")

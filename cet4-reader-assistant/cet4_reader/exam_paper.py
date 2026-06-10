@@ -33,6 +33,15 @@ QUESTION_START_RE = re.compile(r"^\s*\d{1,3}[\.\)]\s*")
 OPTION_START_RE = re.compile(r"^\s*[A-D][\.\)]\s*")
 INLINE_OPTION_RE = re.compile(r"\s+([A-D][\.\)])\s*")
 SPACE_RE = re.compile(r"[ \t]+")
+APOSTROPHE_SPACE_RE = re.compile(r"\s+([’'])\s*")
+SPLIT_WORD_SUFFIX_RE = re.compile(
+    r"\b([A-Za-z]{3,})\s+(s|es|ed|er|ers|ing|ingly|ure|uring|ion|ions|al|ally|ive|ives|ment|ments|ity|ities)\b"
+)
+PARAGRAPH_START_RE = re.compile(
+    r"^(?:I\s+am\b|One\s+\w+\b|A\s+\w+\b|An\s+\w+\b|Women\b|Men\b|But\b|However\b)",
+    re.IGNORECASE,
+)
+SHORT_PARAGRAPH_END_LENGTH = 95
 
 
 def parse_exam_pdf(path: Path) -> list[ExamPaperPassage]:
@@ -85,7 +94,7 @@ def parse_exam_text(text: str) -> list[ExamPaperPassage]:
                 title="选词填空 26-35",
                 section="Section A",
                 question_range="26-35",
-                article_text=article or section_a,
+                article_text=_format_article_text(article or section_a),
                 question_text=_format_question_text(questions),
             )
         )
@@ -98,7 +107,7 @@ def parse_exam_text(text: str) -> list[ExamPaperPassage]:
                 title="长篇阅读 36-45",
                 section="Section B",
                 question_range="36-45",
-                article_text=article or section_b,
+                article_text=_format_article_text(article or section_b),
                 question_text=_format_question_text(questions),
             )
         )
@@ -117,8 +126,34 @@ def parse_exam_text(text: str) -> list[ExamPaperPassage]:
 def _normalize_text(text: str) -> str:
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     normalized = re.sub(r"([A-Za-z])-\s*\n\s*([A-Za-z])", r"\1\2", normalized)
-    lines = [SPACE_RE.sub(" ", line).strip() for line in normalized.splitlines()]
-    return "\n".join(line for line in lines if line)
+    lines: list[str] = []
+    raw_lines = normalized.splitlines()
+    for index, raw_line in enumerate(raw_lines):
+        line = _clean_pdf_line(raw_line)
+        next_line = _clean_pdf_line(raw_lines[index + 1]) if index + 1 < len(raw_lines) else ""
+        has_paragraph_break = _has_pdf_paragraph_break(raw_line, line, next_line)
+        if line:
+            lines.append(line)
+        if has_paragraph_break and lines and lines[-1] != "":
+            lines.append("")
+    while lines and lines[-1] == "":
+        lines.pop()
+    return "\n".join(lines)
+
+
+def _clean_pdf_line(line: str) -> str:
+    cleaned = SPACE_RE.sub(" ", line).strip()
+    cleaned = APOSTROPHE_SPACE_RE.sub(r"\1", cleaned)
+    cleaned = SPLIT_WORD_SUFFIX_RE.sub(r"\1\2", cleaned)
+    return cleaned
+
+
+def _has_pdf_paragraph_break(raw_line: str, line: str, next_line: str) -> bool:
+    if not raw_line.endswith("  ") or not line or not next_line:
+        return False
+    if len(line) <= SHORT_PARAGRAPH_END_LENGTH:
+        return True
+    return bool(PARAGRAPH_START_RE.match(next_line))
 
 
 def _reading_part(text: str) -> str:
@@ -162,14 +197,14 @@ def _split_section_c(section_text: str) -> list[ExamPaperPassage]:
             title="第一篇短篇阅读 46-50",
             section="Section C",
             question_range="46-50",
-            article_text=first_article,
+            article_text=_format_article_text(first_article),
             question_text=_format_question_text(first_questions),
         ),
         ExamPaperPassage(
             title="第二篇短篇阅读 51-55",
             section="Section C",
             question_range="51-55",
-            article_text=second_article,
+            article_text=_format_article_text(second_article),
             question_text=_format_question_text(second_questions),
         ),
     ]
@@ -215,3 +250,19 @@ def _format_question_text(text: str) -> str:
     while formatted and formatted[-1] == "":
         formatted.pop()
     return "\n".join(formatted)
+
+
+def _format_article_text(text: str) -> str:
+    paragraphs: list[str] = []
+    current: list[str] = []
+    for raw_line in text.splitlines():
+        line = SPACE_RE.sub(" ", raw_line).strip()
+        if not line:
+            if current:
+                paragraphs.append(" ".join(current))
+                current = []
+            continue
+        current.append(line)
+    if current:
+        paragraphs.append(" ".join(current))
+    return "\n\n".join(paragraphs).strip()
