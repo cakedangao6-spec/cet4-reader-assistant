@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSlider,
     QSplitter,
     QStatusBar,
@@ -971,6 +972,10 @@ class MainWindow(QMainWindow):
         translate_act.triggered.connect(self._on_translate_toolbar)
         fmt_toolbar.addAction(translate_act)
 
+        sidebar_scroll = QScrollArea(self)
+        sidebar_scroll.setWidgetResizable(True)
+        sidebar_scroll.setFrameShape(QFrame.Shape.NoFrame)
+
         sidebar = QWidget()
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(14, 14, 14, 14)
@@ -998,7 +1003,9 @@ class MainWindow(QMainWindow):
         self.vocab_list.itemClicked.connect(self._on_vocab_item_clicked)
         self.vocab_list.itemDoubleClicked.connect(self._on_vocab_item_double_clicked)
         self.vocab_list.itemChanged.connect(self._on_vocab_item_changed)
-        sidebar_layout.addWidget(self.vocab_list, 1)
+        self.vocab_list.setMinimumHeight(110)
+        self.vocab_list.setMaximumHeight(160)
+        sidebar_layout.addWidget(self.vocab_list)
 
         remove_button = QPushButton("移除选中")
         remove_button.clicked.connect(self.remove_selected_word)
@@ -1013,7 +1020,7 @@ class MainWindow(QMainWindow):
 
         self.detail_view = QTextBrowser()
         self.detail_view.setOpenExternalLinks(False)
-        self.detail_view.setMinimumHeight(190)
+        self.detail_view.setMinimumHeight(210)
         sidebar_layout.addWidget(self.detail_view)
 
         ai_header = QLabel("AI 讲题")
@@ -1021,7 +1028,7 @@ class MainWindow(QMainWindow):
 
         self.ai_answer_view = QTextBrowser()
         self.ai_answer_view.setOpenExternalLinks(False)
-        self.ai_answer_view.setMinimumHeight(150)
+        self.ai_answer_view.setMinimumHeight(220)
         self.ai_answer_view.setPlaceholderText("这里显示本地 Ollama 的讲题结果。")
         sidebar_layout.addWidget(self.ai_answer_view)
 
@@ -1039,9 +1046,11 @@ class MainWindow(QMainWindow):
         self.ai_clear_button.clicked.connect(self.ai_answer_view.clear)
         ai_row.addWidget(self.ai_clear_button)
         sidebar_layout.addLayout(ai_row)
+        sidebar_layout.addStretch(1)
 
-        root.addWidget(sidebar)
-        root.setSizes([820, 360])
+        sidebar_scroll.setWidget(sidebar)
+        root.addWidget(sidebar_scroll)
+        root.setSizes([800, 380])
 
         status = QStatusBar(self)
         self.setStatusBar(status)
