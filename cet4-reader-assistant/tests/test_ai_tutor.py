@@ -1,0 +1,144 @@
+from __future__ import annotations
+
+import json
+import unittest
+from unittest.mock import patch
+
+from cet4_reader.ai_tutor import (
+    AITutorContext,
+    ask_ollama,
+    build_tutor_prompt,
+    format_article_paragraphs_with_ollama,
+    stream_ollama,
+    strip_thinking,
+)
+
+
+class FakeResponse:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self.payload = payload
+
+    def __enter__(self) -> "FakeResponse":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return json.dumps(self.payload, ensure_ascii=False).encode("utf-8")
+
+
+class FakeStreamResponse:
+    def __init__(self, payloads: list[dict[str, object]]) -> None:
+        self.payloads = payloads
+
+    def __enter__(self) -> "FakeStreamResponse":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def __iter__(self):  # type: ignore[no-untyped-def]
+        for payload in self.payloads:
+            yield json.dumps(payload, ensure_ascii=False).encode("utf-8") + b"\n"
+
+
+class AITutorTests(unittest.TestCase):
+    def test_build_tutor_prompt_includes_reading_context(self) -> None:
+        prompt = build_tutor_prompt(
+            "为什么选 B？",
+            AITutorContext(
+                article_text="Chocolate can calm people down.",
+                question_text="51. What can chocolate do?\nA) Harm people.\nB) Calm people down.",
+                selected_text="51. What can chocolate do?",
+            ),
+        )
+
+        self.assertIn("Chocolate can calm people down.", prompt)
+        self.assertIn("51. What can chocolate do?", prompt)
+        self.assertIn("用户当前选中的内容", prompt)
+        self.assertIn("为什么选 B？", prompt)
+        self.assertIn("思考过程", prompt)
+        self.assertIn("不要输出 <think> 标签", prompt)
+
+    def test_strip_thinking_removes_qwen_think_block(self) -> None:
+        self.assertEqual(strip_thinking("<think>hidden</think>\n定位：原文第二句。"), "定位：原文第二句。")
+
+    def test_ask_ollama_parses_chat_response(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_urlopen(request, timeout):  # type: ignore[no-untyped-def]
+            captured["timeout"] = timeout
+            captured["body"] = json.loads(request.data.decode("utf-8"))
+            return FakeResponse({"message": {"content": "<think>x</think>\n结论：选 B。"}})
+
+        with patch("cet4_reader.ai_tutor.urlopen", fake_urlopen):
+            answer = ask_ollama(
+                "讲一下",
+                AITutorContext(article_text="Body", question_text="Question"),
+                base_url="http://127.0.0.1:11434",
+                model="qwen3:8b",
+            )
+
+        self.assertEqual(answer, "结论：选 B。")
+        body = captured["body"]
+        self.assertIsInstance(body, dict)
+        self.assertEqual(body["model"], "qwen3:8b")
+        self.assertFalse(body["stream"])
+
+    def test_stream_ollama_emits_visible_chunks_and_hides_think_block(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_urlopen(request, timeout):  # type: ignore[no-untyped-def]
+            captured["body"] = json.loads(request.data.decode("utf-8"))
+            return FakeStreamResponse(
+                [
+                    {"message": {"content": "<thi"}},
+                    {"message": {"content": "nk>hidden"}},
+                    {"message": {"content": "</think>\n定位："}},
+                    {"message": {"content": "原文第二句。"}, "done": True},
+                ]
+            )
+
+        chunks: list[str] = []
+        with patch("cet4_reader.ai_tutor.urlopen", fake_urlopen):
+            answer = stream_ollama(
+                "讲一下",
+                AITutorContext(article_text="Body", question_text="Question"),
+                on_chunk=chunks.append,
+                base_url="http://127.0.0.1:11434",
+                model="qwen3:8b",
+            )
+
+        self.assertEqual(answer, "定位：原文第二句。")
+        self.assertEqual("".join(chunks).strip(), answer)
+        body = captured["body"]
+        self.assertIsInstance(body, dict)
+        self.assertTrue(body["stream"])
+        self.assertNotIn("hidden", "".join(chunks))
+
+    def test_format_article_paragraphs_uses_plain_article_prompt(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_urlopen(request, timeout):  # type: ignore[no-untyped-def]
+            captured["timeout"] = timeout
+            captured["body"] = json.loads(request.data.decode("utf-8"))
+            return FakeResponse({"message": {"content": "First paragraph.\n\nSecond paragraph."}})
+
+        with patch("cet4_reader.ai_tutor.urlopen", fake_urlopen):
+            answer = format_article_paragraphs_with_ollama(
+                "First paragraph. Second paragraph.",
+                base_url="http://127.0.0.1:11434",
+                model="qwen3:8b",
+            )
+
+        self.assertEqual(answer, "First paragraph.\n\nSecond paragraph.")
+        body = captured["body"]
+        self.assertIsInstance(body, dict)
+        prompt = body["messages"][0]["content"]  # type: ignore[index]
+        self.assertIn("只修复", prompt)
+        self.assertIn("不翻译", prompt)
+
+
+if __name__ == "__main__":
+    unittest.main()

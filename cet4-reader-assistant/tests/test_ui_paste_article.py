@@ -11,9 +11,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6.QtCore import QMimeData, Qt
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QToolBar, QToolButton
+from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QPushButton, QToolBar, QToolButton
 from PyQt6.QtGui import QTextCursor
 
+from cet4_reader.exam_paper import ExamPaperParseError, ExamPaperPassage
 from cet4_reader.ui import MainWindow
 from cet4_reader.listening import (
     ListeningAnalyzer,
@@ -270,12 +271,66 @@ class PasteArticleFlowTests(unittest.TestCase):
             translate.assert_called_once_with("Question sentence.")
             window.close()
 
-    def test_toolbar_has_no_file_import_actions(self) -> None:
+    def test_toolbar_has_exam_pdf_import_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
             labels = [action.text() for toolbar in window.findChildren(QToolBar) for action in toolbar.actions()]
-            self.assertNotIn("上传图片", labels)
-            self.assertNotIn("导入TXT", labels)
+            self.assertIn("导入试卷 PDF", labels)
+            self.assertIn("AI优化分段", labels)
+            window.close()
+
+    def test_sidebar_has_ai_tutor_controls(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            buttons = [button.text() for button in window.findChildren(QPushButton)]
+
+            self.assertIn("问 AI", buttons)
+            self.assertIn("清空讲解", buttons)
+            self.assertEqual(window.ai_question_input.placeholderText(), "问：这题为什么选 B？或 这句话怎么理解？")
+            window.close()
+
+    def test_exam_passage_combo_loads_selected_passage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            passages = [
+                ExamPaperPassage(
+                    title="选词填空 26-35",
+                    section="Section A",
+                    question_range="26-35",
+                    article_text="Section A article.",
+                    question_text="26. First blank.",
+                ),
+                ExamPaperPassage(
+                    title="第一篇短篇阅读 46-50",
+                    section="Section C",
+                    question_range="46-50",
+                    article_text="Panda passage body.",
+                    question_text="46. What do experts say?\nA) Habitat matters.",
+                ),
+            ]
+
+            window.set_exam_passages(passages)
+            self.assertEqual(window.exam_passage_combo.count(), 3)
+            window.exam_passage_combo.setCurrentIndex(2)
+
+            self.assertEqual(window.article_view.toPlainText(), "Panda passage body.")
+            self.assertIn("46. What do experts say?", window.question_view.toPlainText())
+            window.close()
+
+    def test_exam_import_failure_keeps_existing_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            window = MainWindow(base_dir=self._make_base_dir(Path(tmp)))
+            window.article_view.setPlainText("Existing article.")
+            window.question_view.setPlainText("Existing question.")
+
+            with patch("cet4_reader.ui.QFileDialog.getOpenFileName", return_value=("paper.pdf", "PDF 文件 (*.pdf)")):
+                with patch("cet4_reader.ui.parse_exam_pdf", side_effect=ExamPaperParseError("bad pdf")):
+                    with patch("cet4_reader.ui.QMessageBox.warning") as warning:
+                        window.import_exam_pdf()
+
+            warning.assert_called_once()
+            self.assertEqual(window.article_view.toPlainText(), "Existing article.")
+            self.assertEqual(window.question_view.toPlainText(), "Existing question.")
             window.close()
 
     def test_startup_does_not_initialize_dictionary(self) -> None:

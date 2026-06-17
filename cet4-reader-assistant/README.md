@@ -13,7 +13,9 @@ The only active showcase project is `cet4-reader-assistant`. `cet4-abloop-player
 ### Reading Mode
 
 - Passage/question splitting: pasted reading materials are automatically split into a reading area and a question area when question markers such as `Questions ...`, `Question 1`, numbered items, or Chinese prompts are detected.
+- Exam PDF import: import a text-based CET-4 paper PDF, then choose Section A, Section B, Passage One, or Passage Two from the reading passage list.
 - Word lookup: click an English word in the passage or question area to query its meaning.
+- Local AI tutor: ask the Ollama-powered `qwen3:8b` tutor about the current passage, selected text, or question choices.
 - Vocabulary notebook: double-click a word to add it, or add words manually from the side panel; export the current list to `vocab/vocab.txt` with timestamped history snapshots.
 - Search and highlighting: use `Ctrl+F` for search; select text and right-click to add or remove highlights.
 - TXT import and cleanup: supports common text encodings and cleans page numbers, question numbers, option lines, Section/Passage noise, and OCR-style artifacts.
@@ -50,6 +52,8 @@ The only active showcase project is `cet4-reader-assistant`. `cet4-abloop-player
 | Language | Python |
 | Desktop UI | PyQt6 |
 | OCR | PaddleOCR |
+| PDF parsing | pypdf |
+| Local AI tutor | Ollama |
 | Listening transcription | faster-whisper |
 | Local data | CSV, SQLite |
 | Testing | unittest |
@@ -60,9 +64,11 @@ The only active showcase project is `cet4-reader-assistant`. `cet4-abloop-player
 cet4-reader-assistant/
 ├─ cet4_reader/
 │  ├─ main.py              # Application entry point
+│  ├─ ai_tutor.py          # Local Ollama tutor prompt and API helpers
 │  ├─ ui.py                # PyQt6 UI and reading/listening interactions
 │  ├─ core.py              # Text processing and vocabulary export
 │  ├─ dictionary.py        # Local/online dictionary and lemmatization
+│  ├─ exam_paper.py        # CET-4 paper PDF parsing and reading passage splitting
 │  ├─ ocr_service.py       # PaddleOCR service and OCR text extraction
 │  └─ listening.py         # Whisper transcription, article splitting, GPU fallback
 ├─ scripts/
